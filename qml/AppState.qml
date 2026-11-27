@@ -1009,6 +1009,8 @@ QtObject {
     // accepted samples. Position only: the load band and the AUTO HOLDING
     // gate still decide which frames are averaged.
     property bool manualMeasurementConvergenceEnabled: false
+    // Same rule for Calibrate; off keeps the fixed sample count.
+    property bool manualCalibrationConvergenceEnabled: false
     // AUTO MEASURE ON CLAMP: the first bend of a run measures the sheet with the
     // contact profile at the minimum measuring tonnage (0.5 T; readings below
     // about 0.35 t are invalid) before the clamp, then runs with that thickness.
@@ -1023,10 +1025,11 @@ QtObject {
     property bool runAutoMeasureOnBlock: false
     property bool runAutoMeasureBlockConfirmed: false
     property real runAutoMeasureResult: NaN
-    // Measure only: Calibrate always averages the fixed sample count so the
-    // die-top reference never depends on the early-acceptance rule.
-    readonly property bool manualMeasurementConvergenceActive: manualMeasurementConvergenceEnabled
-        && manualMeasurementMode === "MEASUREMENT"
+    // Measure and Calibrate have separate toggles; with Calibrate's off the
+    // die-top reference keeps the fixed sample count.
+    readonly property bool manualMeasurementConvergenceActive:
+        (manualMeasurementConvergenceEnabled && manualMeasurementMode === "MEASUREMENT")
+        || (manualCalibrationConvergenceEnabled && manualMeasurementMode === "CALIBRATION")
     readonly property int manualMeasurementConvergenceWindow: 20
     readonly property real manualMeasurementConvergenceTolerance: 0.0002
     property var manualMeasurementMeanHistory: []
@@ -1559,6 +1562,7 @@ QtObject {
         tonnageProtectionEnabled = model.tonnageProtectionEnabled !== false
         desktopFrameDeflectionCompensationEnabled = model.desktopFrameDeflectionCompensationEnabled === true
         manualMeasurementConvergenceEnabled = model.manualMeasurementConvergenceEnabled === true
+        manualCalibrationConvergenceEnabled = model.manualCalibrationConvergenceEnabled === true
         autoMeasureOnClampEnabled = model.autoMeasureOnClampEnabled === true
         if (isFinite(Number(model.autoMeasureReferenceBlockThickness)))
             autoMeasureReferenceBlockThickness = Math.max(0, Math.min(2,
@@ -8405,6 +8409,14 @@ QtObject {
             autoMeasureOnClampEnabled = !autoMeasureOnClampEnabled
             persistLocalSetting("autoMeasureOnClampEnabled", autoMeasureOnClampEnabled)
             log("SETTINGS", "Auto measure on clamp " + (autoMeasureOnClampEnabled ? "enabled" : "disabled"))
+            return
+        }
+        if (action === "Calibration Convergence") {
+            manualCalibrationConvergenceEnabled = !manualCalibrationConvergenceEnabled
+            persistLocalSetting("manualCalibrationConvergenceEnabled", manualCalibrationConvergenceEnabled)
+            log("SETTINGS", "Calibration convergence " + (manualCalibrationConvergenceEnabled
+                ? "enabled (accept when stable)" : "disabled (fixed "
+                  + manualMeasurementRequiredSamples + " samples)"))
             return
         }
         if (action === "Measurement Convergence") {

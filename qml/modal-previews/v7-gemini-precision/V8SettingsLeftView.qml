@@ -90,6 +90,7 @@ Item {
             return fw >= 0 ? fw === 1 : appState.desktopFrameDeflectionCompensationEnabled === true
         }
         if (label === "Measurement Convergence") return appState.manualMeasurementConvergenceEnabled === true
+        if (label === "Calibration Convergence") return appState.manualCalibrationConvergenceEnabled === true
         if (label === "Auto Measure On Clamp") return appState.autoMeasureOnClampEnabled === true
         return true
     }
@@ -452,13 +453,26 @@ Item {
                             objectName: "settings-measurement-convergence"
                             title: qsTr("Measure Convergence")
                             desc: root.appState
-                                ? qsTr("Measure only: accept once stable (≥ %1 frames, Δ ≤ %2 in); Calibrate always %3 frames")
+                                ? qsTr("Measure only: accept once stable (≥ %1 frames, Δ ≤ %2 in); Calibrate: separate toggle")
                                     .arg(root.appState.manualMeasurementMinimumSamples)
                                     .arg(root.appState.manualMeasurementConvergenceTolerance.toFixed(4))
                                     .arg(root.appState.manualMeasurementRequiredSamples)
-                                : qsTr("Measure only: accept the average once stable; Calibrate keeps the fixed frame count")
+                                : qsTr("Measure only: accept the average once stable; Calibrate has its own toggle")
                             checked: root.toggleSelected("Measurement Convergence")
                             onToggled: if (root.appState) root.appState.settingsAction("Measurement Convergence")
+                        }
+
+                        SettingSwitchRow {
+                            objectName: "settings-calibration-convergence"
+                            title: qsTr("Calibrate Convergence")
+                            desc: root.appState
+                                ? qsTr("Calibrate: accept once stable (≥ %1 frames, Δ ≤ %2 in); off = fixed %3 frames")
+                                    .arg(root.appState.manualMeasurementMinimumSamples)
+                                    .arg(root.appState.manualMeasurementConvergenceTolerance.toFixed(4))
+                                    .arg(root.appState.manualMeasurementRequiredSamples)
+                                : qsTr("Calibrate: accept the average once stable; off keeps the fixed frame count")
+                            checked: root.toggleSelected("Calibration Convergence")
+                            onToggled: if (root.appState) root.appState.settingsAction("Calibration Convergence")
                         }
 
                         SettingSwitchRow {
