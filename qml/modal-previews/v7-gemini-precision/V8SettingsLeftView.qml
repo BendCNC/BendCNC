@@ -951,16 +951,6 @@ Item {
                                         color: root.textPrimary
                                         elide: Text.ElideRight
                                     }
-                                    Button {
-                                        objectName: "maintenance-check-updates"
-                                        Layout.preferredWidth: 96
-                                        Layout.preferredHeight: 22
-                                        padding: 0
-                                        enabled: root.appState !== null
-                                        onClicked: root.appState.toolbarAction("check-updates")
-                                        background: Rectangle { radius: 4; color: "#F1F5F9"; border.color: "#CBD5E1" }
-                                        contentItem: Text { text: "⟳ " + qsTr("CHECK"); font.bold: true; font.pixelSize: 10; color: root.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                                    }
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -1067,6 +1057,7 @@ Item {
                                 }
                                 RowLayout {
                                     Layout.fillWidth: true
+                                    visible: cadPairBox.hs !== null && cadPairBox.hs.cadPairedDevices.length > 0
                                     spacing: 8
                                     Button {
                                         objectName: "cad-revoke-button"
@@ -1522,13 +1513,14 @@ Item {
                         // 3. Tooling Library & Program Database Backup Box
                         Rectangle {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 88
+                            Layout.preferredHeight: backupCardColumn.implicitHeight + 20
                             radius: 6
                             color: "#FFFFFF"
                             border.color: "#CBD5E1"
                             border.width: 1
 
                             ColumnLayout {
+                                id: backupCardColumn
                                 anchors.fill: parent
                                 anchors.margins: 10
                                 spacing: 6
