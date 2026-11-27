@@ -1,0 +1,14 @@
+[Unit]
+Description=BendCNC persistent boot diagnostics (overlayroot keeps /var/log in RAM)
+RequiresMountsFor=/data
+DefaultDependencies=no
+After=local-fs.target
+
+[Service]
+Type=simple
+# Snapshot the journal at 1, 3 and 10 minutes after boot so a hang can be
+# diagnosed later from /data/bendcnc-qt-state/logs/boot-last.log.
+ExecStart=/bin/bash -c 'd=/data/bendcnc-qt-state/logs; install -d -m 0755 -o cnc -g cnc $d; for s in 60 120 420; do sleep $s; { systemctl list-jobs --no-pager; systemctl --failed --no-pager; journalctl -b --no-pager; } > $d/boot-last.log 2>&1; done'
+
+[Install]
+WantedBy=sysinit.target

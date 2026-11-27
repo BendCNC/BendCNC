@@ -1,0 +1,9 @@
+// The kiosk service runs as cnc outside a logind seat session, so logind
+// would ask for authentication. Allow only power-off/reboot for cnc.
+polkit.addRule(function(action, subject) {
+    if (subject.user === "cnc" &&
+        (action.id.indexOf("org.freedesktop.login1.power-off") === 0 ||
+         action.id.indexOf("org.freedesktop.login1.reboot") === 0)) {
+        return polkit.Result.YES;
+    }
+});

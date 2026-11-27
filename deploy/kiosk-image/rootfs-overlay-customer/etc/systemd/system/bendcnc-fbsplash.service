@@ -1,0 +1,12 @@
+[Unit]
+Description=BendCNC framebuffer boot splash
+DefaultDependencies=no
+After=systemd-udevd.service
+
+[Service]
+Type=exec
+ExecStart=/usr/local/sbin/bendcnc-fbsplash
+Nice=5
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=BendCNC Qt
+Comment=Stop Java safely, launch BendCNC Qt, and restore Java when Qt closes
+Exec=/data/bendcnc-qt/switch-to-qt-normal.sh
+Icon=applications-engineering
+Terminal=false
+Categories=Utility;
+StartupNotify=true

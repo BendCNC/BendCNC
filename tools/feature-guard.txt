@@ -1,0 +1,37 @@
+# Feature regression guard: every line is  <file relative to qt/> | <literal text that must exist>
+# The prototype build FAILS if any marker is missing, so a stale or partially
+# reverted file cannot be compiled or deployed silently. When a feature is
+# intentionally removed, delete its line here in the same commit.
+
+# RUN: AUTO CLAMP TO BEND off -> release + re-press pedal before bending
+qml/AppState.qml | physicalRunWaitAction = "BEND_PEDAL_REPRESS"
+qml/AppState.qml | property bool bendRepressDone
+# RUN: pedal tap advances to the next bend
+qml/AppState.qml | property bool runAdvanceOnPedalTap
+qml/AppState.qml | function awaitNextBendPedalTap()
+qml/AppState.qml | NEXT_BEND_PEDAL_TAP
+# Back gauge: retract between bends toggle
+qml/AppState.qml | function setBackGaugeRetractBetweenBendsEnabled(
+# RUN: palm switches OR pedal double tap prompt (r36e19)
+qml/AppState.qml | HOLD PALM SWITCHES OR DOUBLE-TAP AND HOLD PEDAL
+# PROGRAM BEND parks on sequence 1 at end
+qml/AppState.qml | selectRunBend(0, true)
+# Program date backfill
+qml/AppState.qml | function programStampOrFallback(
+# Program list: REGENERATE badge for old exports
+qml/AppState.qml | label: "REGENERATE"
+# Backup & restore manager
+qml/AppState.qml | showPopup("BACKUP & RESTORE", "", 1, "backup")
+# Operator TH stop is not an alarm
+qml/AppState.qml | property bool tonnageHoldStopRequested
+# Unfold plan fields for LIVE punch drawing
+qml/AppState.qml | unfoldPunchMirror: cadBend.unfoldPunchMirror
+qml/AppState.qml | unfoldGaugeIn:
+# Manual speed editable when ENABLED
+qml/AppState.qml | manualModeState === "ENABLED"
+# Load tower smoothing (EMA + hysteresis)
+qml/modal-previews/v5-gemini-precision/RamDroView.qml | 0.35
+# Machine firmware dropdown and Fusion add-in (CAD PC) pairing
+qml/modal-previews/v7-gemini-precision/V8SettingsLeftView.qml | machine-firmware-dropdown
+qml/modal-previews/v7-gemini-precision/V8SettingsLeftView.qml | Fusion Add-in Pairing
+src/MachineFirmwareBackend.cpp | modifiedMs

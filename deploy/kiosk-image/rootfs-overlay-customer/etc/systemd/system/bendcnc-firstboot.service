@@ -1,0 +1,32 @@
+[Unit]
+Description=BendCNC first-boot setup wizard
+After=local-fs.target systemd-udev-settle.service NetworkManager.service plymouth-quit.service plymouth-quit-wait.service
+Wants=systemd-udev-settle.service NetworkManager.service
+RequiresMountsFor=/data
+# No Conflicts= with the kiosk: both are in the boot transaction and systemd
+# silently drops one job. The /data stamp conditions make them exclusive.
+Conflicts=display-manager.service
+ConditionPathExists=!/data/bendcnc-qt-state/bendcnc-installed
+
+[Service]
+Type=simple
+User=cnc
+Group=cnc
+SupplementaryGroups=video render input
+RuntimeDirectory=bendcnc-setup
+RuntimeDirectoryMode=0700
+# Same proven EGLFS/KMS settings as the kiosk (explicit card0/HDMI-A-1 config,
+# always set mode). Without them Qt may pick the wrong DRM node and the screen
+# stays on the boot logo.
+EnvironmentFile=-/etc/bendcnc/kiosk.env
+# Plymouth must release DRM master before EGLFS can take the display.
+ExecStartPre=-+/bin/plymouth quit
+ExecStart=/usr/local/sbin/bendcnc-setup-launch
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bendcnc-setup
+
+[Install]
+WantedBy=multi-user.target

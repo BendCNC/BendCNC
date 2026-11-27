@@ -1,0 +1,38 @@
+#!/bin/bash
+# Root-owned manager of CAD PC keys for the `bendimport` account.
+# cnc (the kiosk) may run: add <label> <ssh-ed25519 key> | list | clear
+set -euo pipefail
+FILE=/etc/bendcnc/import_authorized_keys
+OPTS='restrict,command="/usr/local/sbin/bendcnc-import-shell"'
+install -d -m 0755 /etc/bendcnc
+touch "$FILE"; chmod 0644 "$FILE"
+
+persist() {
+    # Mirror into the read-only lower layer when overlayroot is active.
+    if command -v overlayroot-chroot >/dev/null && [ -d /media/root-ro ]; then
+        overlayroot-chroot install -D -m 0644 /dev/stdin "$FILE" < "$FILE" >/dev/null 2>&1 || true
+    fi
+}
+
+case "${1:-}" in
+    add)
+        label="${2:-}"; type="${3:-}"; blob="${4:-}"
+        [[ "$label" =~ ^[A-Za-z0-9._-]{1,40}$ ]] || { echo "bad label" >&2; exit 2; }
+        [[ "$type" == ssh-ed25519 && "$blob" =~ ^[A-Za-z0-9+/]{60,100}={0,2}$ ]] || { echo "bad key" >&2; exit 2; }
+        tmp=$(mktemp)
+        grep -v " bendcnc-cad:$label\$" "$FILE" | grep -vF " $blob " > "$tmp" || true
+        echo "$OPTS $type $blob bendcnc-cad:$label" >> "$tmp"
+        install -m 0644 "$tmp" "$FILE"; rm -f "$tmp"
+        persist
+        ;;
+    list)
+        sed -n 's/.* bendcnc-cad:\(.*\)$/\1/p' "$FILE"
+        ;;
+    clear)
+        : > "$FILE"
+        persist
+        ;;
+    *)
+        echo "usage: $0 add <label> ssh-ed25519 <base64> | list | clear" >&2; exit 64
+        ;;
+esac

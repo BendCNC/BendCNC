@@ -1,0 +1,12 @@
+[Unit]
+Description=BendCNC grow /data to the full SD card (first boot)
+RequiresMountsFor=/data
+After=local-fs.target
+ConditionPathExists=!/data/.bendcnc-grown
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bendcnc-growdata
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,41 @@
+[Unit]
+Description=BendCNC Qt direct DRM/KMS kiosk
+After=local-fs.target systemd-udev-settle.service bendcnc-wifi-init.service NetworkManager.service
+Wants=systemd-udev-settle.service bendcnc-wifi-init.service NetworkManager.service
+RequiresMountsFor=/data
+Conflicts=display-manager.service
+ConditionPathExists=/data/bendcnc-qt/prototype
+
+[Service]
+Type=simple
+User=cnc
+Group=cnc
+SupplementaryGroups=video render input dialout
+WorkingDirectory=/data/bendcnc-qt
+EnvironmentFile=-/etc/bendcnc/kiosk.env
+RuntimeDirectory=bendcnc
+RuntimeDirectoryMode=0700
+# Fallback when udevd is slow/hung after a firmware-flash USB reset: the
+# re-created /dev/ttyACM* stayed root:root 0600 -> "OPEN FAILED: Permission denied".
+ExecStartPre=+/bin/sh -c 'for d in /dev/ttyACM* /dev/ttyUSB*; do [ -c "$d" ] && chgrp dialout "$d" && chmod 0660 "$d"; done; true'
+ExecStartPre=/usr/local/sbin/bendcnc-kiosk-preflight
+ExecStart=/usr/local/sbin/bendcnc-kiosk-launch
+Restart=on-failure
+RestartSec=2
+StartLimitIntervalSec=60
+StartLimitBurst=5
+TimeoutStopSec=20
+KillSignal=SIGTERM
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bendcnc-qt
+# false: the UI firmware installer needs `sudo -n bendcnc-flash-firmware`
+# (sudoers restricts it to that helper). true broke UI flashing (2026-11-08).
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/data /run/bendcnc
+
+[Install]
+WantedBy=multi-user.target

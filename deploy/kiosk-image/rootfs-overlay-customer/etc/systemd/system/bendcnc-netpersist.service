@@ -1,0 +1,14 @@
+[Unit]
+Description=BendCNC persistent NetworkManager profiles on /data
+DefaultDependencies=no
+RequiresMountsFor=/data
+After=local-fs.target
+Before=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/bendcnc-netpersist
+
+[Install]
+WantedBy=NetworkManager.service

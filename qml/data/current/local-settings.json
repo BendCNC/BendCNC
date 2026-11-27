@@ -1,0 +1,33 @@
+{
+    "programLoadFolder": "",
+    "virtualInputMode": "ALWAYS",
+    "currentUnit": "INCH",
+    "backGaugeJogStep": {
+        "millimetersValue": 2.5,
+        "inchesValue": 0.1
+    },
+    "backGaugeJogSpeed": {
+        "millimetersValue": 2540,
+        "inchesValue": 100
+    },
+    "backGaugeContinuousJog": true,
+    "bendRamSpeed": {
+        "value": 5,
+        "unit": "INCH"
+    },
+    "jogRamSpeed": {
+        "value": 5,
+        "unit": "INCH"
+    },
+    "jogHoldTimeoutSeconds": 300,
+    "displaySleepMinutes": 0,
+    "safetyPopupsEnabled": false,
+    "legacyRunUiEnabled": false,
+    "runPreviewDebugLogsEnabled": false,
+    "runPreviewDebugOverlaysEnabled": false,
+    "punchCoverageSideToleranceIn": 0.55,
+    "lastSelectedProgramId": "",
+    "lastSelectedProgramName": "",
+    "desktopFrameDeflectionCompensationEnabled": false,
+    "desktopRamToTableOpening": 0
+}

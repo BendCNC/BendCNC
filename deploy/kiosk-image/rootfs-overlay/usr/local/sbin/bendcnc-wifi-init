@@ -1,0 +1,26 @@
+#!/bin/bash
+set -u
+
+# Orange Pi 3B board revisions have shipped with Broadcom-compatible and
+# UWE5622 SDIO modules. Load Broadcom first. sprdwl_ng is tried only when no
+# phy appeared: on Broadcom boards it oopses (NULL deref in sprdwl_probe ->
+# get_loopcheck_status), which hangs udev workers, stalls boot up to ~2 min
+# and keeps Plymouth from seeing the HDMI connector (black splash).
+wait_phy() {
+    local n=$1
+    for ((i = 0; i < n; i++)); do
+        if compgen -G '/sys/class/ieee80211/*' >/dev/null; then
+            echo "WIFI-INIT-READY phys=$(basename -a /sys/class/ieee80211/* | paste -sd, -)"
+            exit 0
+        fi
+        read -r -t 0.2 _ </dev/null || true
+    done
+}
+
+modprobe brcmfmac 2>/dev/null || true
+wait_phy 25
+modprobe sprdwl_ng 2>/dev/null || true
+wait_phy 30
+
+echo "WIFI-INIT-WARN no-phy modules=$(lsmod | awk '$1 == "brcmfmac" || $1 == "sprdwl_ng" {printf "%s,", $1}')" >&2
+exit 0

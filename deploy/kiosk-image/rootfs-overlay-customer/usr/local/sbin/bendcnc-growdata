@@ -1,0 +1,14 @@
+#!/bin/bash
+# Grow the last partition (/data) to the full SD capacity, once, online.
+set -u
+STAMP=/data/.bendcnc-grown
+[ -e "$STAMP" ] && exit 0
+DEV=$(findmnt -no SOURCE /data) || exit 0
+DEV=$(readlink -f "$DEV")
+DISK=/dev/$(lsblk -no PKNAME "$DEV")
+PART=$(cat "/sys/class/block/${DEV##*/}/partition")
+sgdisk -e "$DISK" || true
+echo ', +' | sfdisk --no-reread --no-tell-kernel -N "$PART" "$DISK" || exit 0
+partx -u -n "$PART" "$DISK" || true
+resize2fs "$DEV" && touch "$STAMP"
+exit 0

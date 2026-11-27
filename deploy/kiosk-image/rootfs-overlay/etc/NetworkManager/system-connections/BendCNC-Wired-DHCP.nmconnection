@@ -1,0 +1,17 @@
+[connection]
+id=BendCNC Wired DHCP
+uuid=eed12373-a22b-41a7-9a80-f6c41a4a63e7
+type=ethernet
+autoconnect=true
+autoconnect-priority=100
+
+[ethernet]
+
+[ipv4]
+method=auto
+
+[ipv6]
+addr-gen-mode=stable-privacy
+method=auto
+
+[proxy]

@@ -1,0 +1,3 @@
+[submodule "sequence-planner"]
+	path = sequence-planner
+	url = https://github.com/BendCNC/sequence-planner.git

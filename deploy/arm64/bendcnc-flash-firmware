@@ -1,0 +1,586 @@
+#!/bin/bash
+set -euo pipefail
+
+STATE_DIR=/data/bendcnc-firmware
+STATUS_FILE="$STATE_DIR/status.env"
+LOG_DIR="$STATE_DIR/logs"
+JOB_DIR=/var/lib/bendcnc-firmware-flash/jobs
+LOCK_FILE=/run/lock/bendcnc-firmware-flash.lock
+REQUEST_FILE=/tmp/bendcnc-firmware.request
+ORIGINAL_IMAGE="$STATE_DIR/approved-original-v1.1.bin"
+ORIGINAL_SHA256=c9c3564be37c300f864b8aab22a6ad2b7a9e9a20a95474504dadb6aaad0b8426
+KIOSK_SERVICE=bendcnc-qt-kiosk.service
+DFU_VID_PID=2341:0369
+RUNTIME_VID_PID=2341:0069
+PRESS_RUNTIME_SERIAL_SHORT=320B210B33313939300A33334B572EBF
+SYSFS_ROOT=${BENDCNC_FLASH_SYSFS_ROOT:-/sys}
+DFU_WAIT_SECONDS=${BENDCNC_FLASH_DFU_WAIT_SECONDS:-20}
+
+# This seam is solely for the isolated Linux test. It requires a copied helper
+# in a fresh /tmp sandbox, so it cannot affect the installed root-owned helper.
+TEST_SANDBOX=${BENDCNC_FLASH_TEST_SANDBOX:-}
+TEST_MODE=0
+if [[ $TEST_SANDBOX =~ ^/tmp/bendcnc-flash-test-[A-Za-z0-9]+$ ]] &&
+    [[ $0 == "$TEST_SANDBOX/helper" ]]; then
+    TEST_MODE=1
+    STATE_DIR="$TEST_SANDBOX/state"
+    STATUS_FILE="$STATE_DIR/status.env"
+    LOG_DIR="$STATE_DIR/logs"
+    JOB_DIR="$TEST_SANDBOX/jobs"
+    LOCK_FILE="$TEST_SANDBOX/lock"
+    REQUEST_FILE="$TEST_SANDBOX/request"
+    ORIGINAL_IMAGE="$STATE_DIR/approved-original-v1.1.bin"
+fi
+
+write_status() {
+    local state=$1
+    local job_id=${2:-none}
+    local target_hash=${3:-none}
+    local applied_hash=${4:-none}
+    local rollback=${5:-0}
+    local message=${6:-none}
+    local tmp
+    mkdir -p "$STATE_DIR"
+    tmp=$(mktemp "$STATE_DIR/.status.XXXXXX")
+    message=${message//$'\n'/ }
+    message=${message//=/\:}
+    cat >"$tmp" <<EOF
+STATE=$state
+JOB_ID=$job_id
+TARGET_HASH=$target_hash
+APPLIED_HASH=$applied_hash
+ROLLBACK=$rollback
+MESSAGE=$message
+UPDATED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$STATUS_FILE"
+}
+
+manifest_value() {
+    local key=$1
+    local file=$2
+    sed -n "s/^${key}=//p" "$file" | tail -n 1 | tr -d '\r'
+}
+
+valid_sha256() {
+    [[ $1 =~ ^[0-9a-f]{64}$ ]]
+}
+
+usb_present() {
+    local id=$1
+    lsusb -d "$id" 2>/dev/null | grep -q .
+}
+
+find_runtime_port() {
+    if (( TEST_MODE )) && [[ ${BENDCNC_FLASH_TEST_RUNTIME_PORT:-} == /dev/test-press ]]; then
+        printf '%s\n' /dev/test-press
+        return 0
+    fi
+    local found=()
+    local device
+    local vendor
+    local model
+    local serial_short
+    for device in /dev/ttyACM*; do
+        [[ -e $device ]] || continue
+        vendor=$(udevadm info -q property -n "$device" 2>/dev/null |
+            sed -n 's/^ID_VENDOR_ID=//p' | tail -n 1)
+        model=$(udevadm info -q property -n "$device" 2>/dev/null |
+            sed -n 's/^ID_MODEL_ID=//p' | tail -n 1)
+        serial_short=$(udevadm info -q property -n "$device" 2>/dev/null |
+            sed -n 's/^ID_SERIAL_SHORT=//p' | tail -n 1)
+        if [[ ${vendor,,}:${model,,} == "$RUNTIME_VID_PID" &&
+              $serial_short == "$PRESS_RUNTIME_SERIAL_SHORT" ]]; then
+            found+=("$device")
+        fi
+    done
+    if (( ${#found[@]} != 1 )); then
+        echo "Expected exactly one pinned Press Uno R4 runtime port, found ${#found[@]}" >&2
+        return 1
+    fi
+    printf '%s\n' "${found[0]}"
+}
+
+usb_physical_path_for_port() {
+    local port=$1
+    local sysfs
+    local node
+    local vendor
+    local model
+    sysfs=$(readlink -f "$SYSFS_ROOT/class/tty/${port##*/}/device") || return 1
+    node=$sysfs
+    while [[ $node != /sys && $node != / ]]; do
+        if [[ -f $node/idVendor && -f $node/idProduct ]]; then
+            vendor=$(<"$node/idVendor")
+            model=$(<"$node/idProduct")
+            if [[ ${vendor,,}:${model,,} == "$RUNTIME_VID_PID" ]]; then
+                basename "$node"
+                return 0
+            fi
+        fi
+        node=${node%/*}
+    done
+    return 1
+}
+
+dfu_present_at_path() {
+    local physical_path=$1
+    local node="$SYSFS_ROOT/bus/usb/devices/$physical_path"
+    [[ -f $node/idVendor && -f $node/idProduct ]] &&
+        [[ $(<"$node/idVendor"):$(<"$node/idProduct") == "$DFU_VID_PID" ]]
+}
+
+assert_dfu_only_at_path() {
+    local physical_path=$1
+    local node
+    local found=()
+    for node in "$SYSFS_ROOT"/bus/usb/devices/*; do
+        [[ -f $node/idVendor && -f $node/idProduct ]] || continue
+        [[ $(<"$node/idVendor"):$(<"$node/idProduct") == "$DFU_VID_PID" ]] || continue
+        found+=("${node##*/}")
+    done
+    if (( ${#found[@]} != 1 )) || [[ ${found[0]:-none} != "$physical_path" ]]; then
+        echo "Expected only the bound Press DFU at USB path $physical_path; found: ${found[*]:-none}" >&2
+        return 1
+    fi
+}
+
+wait_for_dfu_path() {
+    local physical_path=$1
+    local timeout_seconds=$2
+    local deadline=$((SECONDS + timeout_seconds))
+    while (( SECONDS < deadline )); do
+        if dfu_present_at_path "$physical_path"; then
+            return 0
+        fi
+        sleep 0.25
+    done
+    return 1
+}
+
+wait_for_runtime_port() {
+    local timeout_seconds=$1
+    local deadline=$((SECONDS + timeout_seconds))
+    local port
+    while (( SECONDS < deadline )); do
+        if port=$(find_runtime_port 2>/dev/null); then
+            printf '%s\n' "$port"
+            return 0
+        fi
+        sleep 0.25
+    done
+    return 1
+}
+
+bound_press_path() {
+    local port
+    local physical_path
+    port=$(find_runtime_port) || return 1
+    physical_path=$(usb_physical_path_for_port "$port") || {
+        echo "Cannot resolve stable USB path for pinned Press Uno R4: $port" >&2
+        return 1
+    }
+    printf '%s\n' "$physical_path"
+}
+
+enter_dfu_at_bound_path() {
+    local port=$1
+    local physical_path=$2
+    # A failed primary transfer can leave the pinned Press in DFU. This is the
+    # only existing-DFU case accepted, and only after runtime-derived binding.
+    if dfu_present_at_path "$physical_path"; then
+        assert_dfu_only_at_path "$physical_path"
+        printf '%s\n' "$physical_path"
+        return 0
+    fi
+    if compgen -G "$SYSFS_ROOT/bus/usb/devices/*" >/dev/null; then
+        local node
+        for node in "$SYSFS_ROOT"/bus/usb/devices/*; do
+            [[ -f $node/idVendor && -f $node/idProduct ]] || continue
+            if [[ $(<"$node/idVendor"):$(<"$node/idProduct") == "$DFU_VID_PID" ]]; then
+                echo "Unexpected unbound Uno R4 DFU at USB path ${node##*/}" >&2
+                return 1
+            fi
+        done
+    fi
+    if fuser "$port" >/dev/null 2>&1; then
+        echo "Uno R4 port remains busy after kiosk stop: $port" >&2
+        return 1
+    fi
+    # Arduino's 1200-baud DFU touch triggers when the CDC port is closed.
+    # stty alone opens/configures/closes the tty, but explicitly clearing
+    # HUPCL can suppress the close transition on this deployment image.
+    stty -F "$port" 1200 raw -echo hupcl || return 1
+    wait_for_dfu_path "$physical_path" "$DFU_WAIT_SECONDS" || {
+        echo "Uno R4 did not enumerate as DFU $DFU_VID_PID at USB path $physical_path" >&2
+        return 1
+    }
+    assert_dfu_only_at_path "$physical_path" || return 1
+    printf '%s\n' "$physical_path"
+}
+
+capture_version() {
+    local port=$1
+    local output=$2
+    python3 - "$port" "$output" <<'PY'
+import os
+import select
+import sys
+import termios
+import time
+
+port, output = sys.argv[1:]
+fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+try:
+    attrs = termios.tcgetattr(fd)
+    attrs[0] = 0
+    attrs[1] = 0
+    attrs[2] = termios.CS8 | termios.CLOCAL | termios.CREAD
+    attrs[3] = 0
+    attrs[4] = termios.B115200
+    attrs[5] = termios.B115200
+    termios.tcsetattr(fd, termios.TCSANOW, attrs)
+    termios.tcflush(fd, termios.TCIOFLUSH)
+    time.sleep(1.0)
+    os.write(fd, b"<!><?>")
+    deadline = time.monotonic() + 8.0
+    data = bytearray()
+    while time.monotonic() < deadline:
+        readable, _, _ = select.select([fd], [], [], 0.25)
+        if fd not in readable:
+            continue
+        try:
+            chunk = os.read(fd, 4096)
+        except BlockingIOError:
+            continue
+        if chunk:
+            data.extend(chunk)
+            hit = next((m for m in (b"[BENDCNC v", b"[LS-BEND v") if m in data), None)
+            if hit and b"]" in data[data.find(hit):]:
+                break
+    with open(output, "wb") as stream:
+        stream.write(data)
+finally:
+    os.close(fd)
+PY
+}
+
+flash_image() {
+    local image=$1
+    local expected_version=$2
+    local capture_file=$3
+    local actual_hash
+    local physical_path
+
+    actual_hash=$(sha256sum "$image" | cut -d' ' -f1)
+    echo "Flashing image sha256=$actual_hash expected=$expected_version"
+    physical_path=$4
+    [[ $physical_path =~ ^[0-9]+-[0-9]+(\.[0-9]+)*$ ]] || {
+        echo "Invalid bound Press USB path: $physical_path" >&2
+        return 1
+    }
+    if dfu_present_at_path "$physical_path"; then
+        # Primary transfer failure may leave the same already-bound Press in
+        # DFU. Do not re-identify a generic DFU device; prove this exact path.
+        assert_dfu_only_at_path "$physical_path" || return 1
+        port=''
+    elif port=$(find_runtime_port 2>/dev/null); then
+        [[ $(usb_physical_path_for_port "$port") == "$physical_path" ]] || {
+            echo 'Pinned Press runtime path changed before DFU; refusing flash.' >&2
+            return 1
+        }
+    else
+        echo 'Pinned Press is neither at its runtime path nor at its bound DFU path.' >&2
+        return 1
+    fi
+    if [[ -n ${port:-} ]]; then
+        enter_dfu_at_bound_path "$port" "$physical_path" >/dev/null || return 1
+    else
+        assert_dfu_only_at_path "$physical_path" || return 1
+    fi
+    dfu-util -d "$DFU_VID_PID" -p "$physical_path" -D "$image" -a 0 --reset || return 1
+    port=$(wait_for_runtime_port "$DFU_WAIT_SECONDS") || {
+        echo 'Uno R4 runtime USB appeared without a unique ttyACM port' >&2
+        return 1
+    }
+    if [[ $(usb_physical_path_for_port "$port") != "$physical_path" ]]; then
+        echo 'Uno R4 returned on a different USB path; refusing identity verification.' >&2
+        return 1
+    fi
+    capture_version "$port" "$capture_file" || return 1
+    cat "$capture_file" || true
+    grep -Fq "$expected_version" "$capture_file" || {
+        echo "Expected firmware identity not observed: $expected_version" >&2
+        return 1
+    }
+}
+
+preflight() {
+    local dependency
+    for dependency in dfu-util lsusb python3 udevadm fuser stty flock systemd-run systemctl sha256sum; do
+        command -v "$dependency" >/dev/null || {
+            echo "Missing required command: $dependency" >&2
+            return 1
+        }
+    done
+    [[ -x /usr/local/sbin/bendcnc-flash-firmware || $TEST_MODE == 1 ]]
+    [[ -f $ORIGINAL_IMAGE ]]
+    [[ $(sha256sum "$ORIGINAL_IMAGE" | cut -d' ' -f1) == "$ORIGINAL_SHA256" ]]
+    systemctl cat "$KIOSK_SERVICE" >/dev/null
+    if usb_present "$DFU_VID_PID"; then
+        echo 'An Uno R4 is already in DFU mode; restore runtime enumeration before preflight.' >&2
+        return 1
+    fi
+    local port
+    port=$(find_runtime_port)
+    printf 'FLASHER_READY=1\nDFU_UTIL=%s\nUNO_RUNTIME_PORT=%s\nPRESS_SERIAL_SHORT=%s\nPRESS_USB_PATH=%s\nORIGINAL_SHA256=%s\nHELPER_SHA256=%s\n' \
+        "$(command -v dfu-util)" "$port" "$PRESS_RUNTIME_SERIAL_SHORT" "$(usb_physical_path_for_port "$port")" "$ORIGINAL_SHA256" "$(sha256sum "$0" | cut -d' ' -f1)"
+}
+
+queue_job() {
+    local request_token
+    local request_fd
+    local upload_image
+    local upload_manifest
+    local image_fd
+    local manifest_fd
+    local expected_hash
+    local expected_version
+    local auto_rollback
+    local label
+    local actual_hash
+    local owner
+    local expected_upload_owner=cnc
+    local links
+    local size
+    local job_id
+    local destination
+    local unit
+
+    exec 9>"$LOCK_FILE"
+    flock -n 9 || {
+        echo 'A firmware flash queue operation is already active.' >&2
+        exit 75
+    }
+    find "$JOB_DIR" -mindepth 1 -maxdepth 1 -type d -mtime +30 -exec rm -rf -- {} + 2>/dev/null || true
+    find "$LOG_DIR" -maxdepth 1 -type f -name '*.log' -mtime +30 -delete 2>/dev/null || true
+    find /tmp -maxdepth 1 -type f -user cnc -name 'bendcnc-firmware-*.bin*' -mmin +60 -delete 2>/dev/null || true
+    find /tmp -maxdepth 1 -type f -user cnc -name 'bendcnc-firmware-*.manifest*' -mmin +60 -delete 2>/dev/null || true
+    [[ -f $REQUEST_FILE && ! -L $REQUEST_FILE ]]
+    if (( TEST_MODE )); then expected_upload_owner=$(id -un); fi
+    [[ $(stat -c %U "$REQUEST_FILE") == "$expected_upload_owner" && $(stat -c %h "$REQUEST_FILE") == 1 ]]
+    exec {request_fd}<"$REQUEST_FILE"
+    rm -f "$REQUEST_FILE"
+    request_token=$(tr -d '\r\n' <&"$request_fd")
+    [[ $request_token =~ ^[a-f0-9]{32}$ ]]
+    upload_image="/tmp/bendcnc-firmware-${request_token}.bin"
+    upload_manifest="/tmp/bendcnc-firmware-${request_token}.manifest"
+    # The copied-helper test has no cnc account; this narrow seam is reachable
+    # only through the validated fresh /tmp test helper path above.
+    [[ -f $upload_image && ! -L $upload_image ]]
+    [[ -f $upload_manifest && ! -L $upload_manifest ]]
+    owner=$(stat -c %U "$upload_image")
+    links=$(stat -c %h "$upload_image")
+    size=$(stat -c %s "$upload_image")
+    [[ $owner == "$expected_upload_owner" && $links == 1 && $size -ge 4096 && $size -le 262144 ]]
+    [[ $(stat -c %U "$upload_manifest") == "$expected_upload_owner" && $(stat -c %h "$upload_manifest") == 1 ]]
+    exec {image_fd}<"$upload_image"
+    exec {manifest_fd}<"$upload_manifest"
+    rm -f "$upload_image" "$upload_manifest"
+    upload_image="/proc/$$/fd/$image_fd"
+    upload_manifest="/proc/$$/fd/$manifest_fd"
+
+    expected_hash=$(manifest_value SHA256 "$upload_manifest")
+    expected_version=$(manifest_value EXPECTED_VERSION "$upload_manifest")
+    auto_rollback=$(manifest_value AUTO_ROLLBACK "$upload_manifest")
+    label=$(manifest_value LABEL "$upload_manifest")
+    valid_sha256 "$expected_hash"
+    [[ $expected_version == '[LS-BEND v1.1]' || $expected_version == '[LS-BEND v1.2]' || $expected_version == '[LS-BEND v1.3]' || $expected_version == '[BENDCNC v1.3]' ]]
+    [[ $auto_rollback == 0 || $auto_rollback == 1 ]]
+    [[ $label =~ ^[A-Za-z0-9._-]{1,64}$ ]]
+    kiosk_mode=$(manifest_value KIOSK_MODE "$upload_manifest")
+    [[ -z $kiosk_mode || $kiosk_mode == keep ]]
+    actual_hash=$(sha256sum "$upload_image" | cut -d' ' -f1)
+    [[ $actual_hash == "$expected_hash" ]]
+
+    job_id="$(date -u +%Y%m%dT%H%M%SZ)-${expected_hash:0:12}"
+    destination="$JOB_DIR/$job_id"
+    mkdir -p "$destination" "$LOG_DIR"
+    install -o root -g root -m 0600 "$upload_image" "$destination/firmware.bin"
+    install -o root -g root -m 0600 "$upload_manifest" "$destination/manifest"
+    write_status QUEUED "$job_id" "$expected_hash" none 0 "$label"
+
+    unit="bendcnc-firmware-flash-${job_id,,}"
+    if ! systemd-run --quiet --collect --no-block --unit="$unit" \
+        --property=Type=oneshot \
+        --property=TimeoutStartSec=10min \
+        /usr/local/sbin/bendcnc-flash-firmware --execute "$destination"; then
+        write_status FAILED "$job_id" "$expected_hash" none 0 queue_start_failed
+        echo 'Failed to start the local systemd flash job.' >&2
+        return 1
+    fi
+    printf 'QUEUED_JOB=%s\nUNIT=%s\n' "$job_id" "$unit"
+}
+
+execute_job() {
+    local destination=$1
+    local manifest="$destination/manifest"
+    local image="$destination/firmware.bin"
+    local job_id
+    local expected_hash
+    local expected_version
+    local auto_rollback
+    local label
+    local log_file
+    local capture_file
+    local press_path
+    local kiosk_mode
+    local applied_hash=none
+    # This variable is read by the EXIT trap. It must be inherited by the
+    # process-substitution shell used by tee under `set -u`.
+    export kiosk_stopped=0
+    # Bash may inherit the EXIT trap into the process-substitution shell used
+    # by tee. Only the main execute_job shell may publish terminal status.
+    export execute_job_pid=$BASHPID
+    # EXIT may be inherited by tee's process-substitution shell. Export the
+    # default just like the PID guard so `set -u` cannot observe it unset.
+    export terminal_written=0
+
+    cleanup_job() {
+        local rc=$?
+        trap - EXIT
+        if [[ $BASHPID != "${execute_job_pid:-}" ]]; then
+            return
+        fi
+        if (( ${kiosk_stopped:-0} )); then
+            systemctl restart "$KIOSK_SERVICE" || true
+        fi
+        if (( ! ${terminal_written:-0} )); then
+            write_status FAILED "${job_id:-unknown}" "${expected_hash:-none}" none \
+                "${auto_rollback:-0}" unexpected_job_exit
+        fi
+        exit "$rc"
+    }
+
+    restart_kiosk() {
+        # The board re-enumerates after DFU (often as a new ttyACM node); udev may
+        # not have applied the dialout rule yet, so grant kiosk access explicitly.
+        udevadm settle --timeout=5 2>/dev/null || true
+        for tty in /dev/ttyACM* /dev/ttyUSB*; do
+            [[ -c $tty ]] || continue
+            chgrp dialout "$tty" 2>/dev/null || true
+            chmod 0660 "$tty" 2>/dev/null || true
+        done
+        (( ${kiosk_stopped:-0} )) || return 0
+        systemctl restart "$KIOSK_SERVICE"
+        systemctl is-active --quiet "$KIOSK_SERVICE"
+        kiosk_stopped=0
+    }
+
+    [[ $destination == "$JOB_DIR"/* ]]
+    [[ -f $manifest && -f $image ]]
+    job_id=${destination##*/}
+    expected_hash=$(manifest_value SHA256 "$manifest")
+    expected_version=$(manifest_value EXPECTED_VERSION "$manifest")
+    auto_rollback=$(manifest_value AUTO_ROLLBACK "$manifest")
+    label=$(manifest_value LABEL "$manifest")
+    valid_sha256 "$expected_hash"
+    [[ $(sha256sum "$image" | cut -d' ' -f1) == "$expected_hash" ]]
+
+    mkdir -p "$LOG_DIR"
+    log_file="$LOG_DIR/$job_id.log"
+    capture_file="$destination/serial-capture.txt"
+    install -o root -g root -m 0644 /dev/null "$log_file"
+    exec > >(tee -a "$log_file") 2>&1
+    trap cleanup_job EXIT
+    exec 9>"$LOCK_FILE"
+    flock 9
+    echo "Starting local flash job $job_id ($label)"
+    write_status FLASHING "$job_id" "$expected_hash" none 0 "$label"
+
+    kiosk_mode=$(manifest_value KIOSK_MODE "$manifest")
+    if [[ $kiosk_mode == keep ]]; then
+        # The UI closed the Press port itself and keeps it locked closed until
+        # a terminal status. Wait for the port to be free; never stop the UI.
+        local keep_port keep_tries=0
+        keep_port=$(find_runtime_port) || return 1
+        while fuser "$keep_port" >/dev/null 2>&1; do
+            (( ++keep_tries <= 60 )) || {
+                echo "Press port still open by the UI: $keep_port" >&2
+                return 1
+            }
+            sleep 0.25
+        done
+    else
+        systemctl stop "$KIOSK_SERVICE"
+        if systemctl is-active --quiet "$KIOSK_SERVICE"; then
+            echo 'Kiosk service remained active after stop request.' >&2
+            return 1
+        fi
+        kiosk_stopped=1
+    fi
+    press_path=$(bound_press_path) || {
+        echo 'Could not bind the exact pinned Press runtime to a physical USB path.' >&2
+        return 1
+    }
+    if flash_image "$image" "$expected_version" "$capture_file" "$press_path"; then
+        install -o root -g root -m 0644 "$image" "$STATE_DIR/last-applied.bin"
+        applied_hash=$(sha256sum "$STATE_DIR/last-applied.bin" | cut -d' ' -f1)
+        restart_kiosk
+        write_status SUCCEEDED "$job_id" "$expected_hash" "$applied_hash" 0 "$label"
+        terminal_written=1
+        echo "Firmware flash succeeded: $applied_hash"
+        trap - EXIT
+        return 0
+    fi
+
+    echo 'Primary flash or identity verification failed.' >&2
+    if [[ $auto_rollback == 1 && -f $ORIGINAL_IMAGE ]] &&
+       [[ $(sha256sum "$ORIGINAL_IMAGE" | cut -d' ' -f1) == "$ORIGINAL_SHA256" ]]; then
+        write_status ROLLING_BACK "$job_id" "$expected_hash" none 1 primary_failed
+        if flash_image "$ORIGINAL_IMAGE" '[LS-BEND v1.1]' "$destination/rollback-serial-capture.txt" "$press_path"; then
+            applied_hash=$ORIGINAL_SHA256
+            install -o root -g root -m 0644 "$ORIGINAL_IMAGE" "$STATE_DIR/last-applied.bin"
+            restart_kiosk
+            write_status ROLLED_BACK "$job_id" "$expected_hash" "$applied_hash" 1 primary_failed
+            terminal_written=1
+            echo 'Original v1.1 firmware restored after primary failure.'
+            trap - EXIT
+            return 2
+        fi
+    fi
+
+    restart_kiosk || true
+    write_status FAILED "$job_id" "$expected_hash" none "$auto_rollback" flash_and_rollback_failed
+    terminal_written=1
+    echo 'Firmware flash failed and verified rollback was not completed.' >&2
+    trap - EXIT
+    return 1
+}
+
+case ${1:-} in
+    --preflight)
+        preflight
+        ;;
+    --status)
+        if [[ -f $STATUS_FILE ]]; then
+            cat "$STATUS_FILE"
+        else
+            printf 'STATE=IDLE\nJOB_ID=none\nTARGET_HASH=none\nAPPLIED_HASH=none\nROLLBACK=0\nMESSAGE=not_started\nUPDATED_UTC=unknown\n'
+        fi
+        ;;
+    --queue)
+        [[ $(id -u) == 0 || $TEST_MODE == 1 ]]
+        queue_job
+        ;;
+    --execute)
+        [[ $(id -u) == 0 || $TEST_MODE == 1 ]]
+        [[ $# == 2 ]]
+        execute_job "$2"
+        ;;
+    *)
+        echo 'usage: bendcnc-flash-firmware --preflight|--status|--queue' >&2
+        exit 64
+        ;;
+esac

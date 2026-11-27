@@ -1,0 +1,37 @@
+#!/bin/bash
+set -euo pipefail
+
+RT=/usr/lib/bendcnc/runtime
+QT_LIB="$RT/usr/lib/aarch64-linux-gnu"
+export LD_LIBRARY_PATH="$QT_LIB:$RT/lib/aarch64-linux-gnu"
+export QT_PLUGIN_PATH="$QT_LIB/qt6/plugins"
+export QML2_IMPORT_PATH="$QT_LIB/qt6/qml"
+export QT_QPA_PLATFORM=eglfs
+export QT_QPA_EGLFS_INTEGRATION=eglfs_kms
+export QT_QPA_EGLFS_KMS_CONFIG=${QT_QPA_EGLFS_KMS_CONFIG:-/etc/bendcnc/eglfs-kms.json}
+export QT_QPA_EGLFS_ALWAYS_SET_MODE=1
+# Touch panel: show the pointer only when a real mouse (not the eGalax
+# touchscreen, which also reports pointer capabilities) is connected.
+export QT_QPA_EGLFS_HIDECURSOR=1
+for ev in /dev/input/event*; do
+    props=$(udevadm info -q property -n "$ev" 2>/dev/null || true)
+    if grep -qx 'ID_INPUT_MOUSE=1' <<<"$props" && ! grep -qx 'ID_INPUT_TOUCHSCREEN=1' <<<"$props"; then
+        export QT_QPA_EGLFS_HIDECURSOR=0
+        break
+    fi
+done
+export XDG_RUNTIME_DIR=/run/bendcnc-setup
+# Same QSettings location as the kiosk app, so the license token is shared.
+export XDG_CONFIG_HOME=/data/bendcnc-qt-state/config
+export QT_FORCE_STDERR_LOGGING=1
+
+# Root is overlayroot (tmpfs): keep wizard and boot diagnostics on /data so a
+# failed first boot can be inspected after power-off.
+LOGDIR=/data/bendcnc-qt-state/logs
+mkdir -p "$LOGDIR"
+{
+    echo "=== $(date -Is) setup start"
+    ls -l /dev/dri
+    cat /sys/class/drm/*/status 2>/dev/null | paste -sd' '
+} >> "$LOGDIR/setup.log" 2>&1 || true
+exec /usr/lib/bendcnc/bendcnc-setup > >(tee -a "$LOGDIR/setup.log") 2>&1

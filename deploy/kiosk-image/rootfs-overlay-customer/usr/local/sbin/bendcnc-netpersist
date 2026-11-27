@@ -1,0 +1,18 @@
+#!/bin/bash
+# Root is overlayroot (tmpfs /etc): WiFi profiles saved by NetworkManager are
+# lost on power cycle. Bind a root-only directory on /data over the profile dir.
+set -eu
+ETC_DIR=/etc/NetworkManager/system-connections
+DATA_DIR=/data/bendcnc-network/system-connections
+mountpoint -q /data || { echo "NETPERSIST-SKIP /data not mounted" >&2; exit 0; }
+mountpoint -q "$ETC_DIR" && exit 0
+install -d -o 0 -g 0 -m 0700 /data/bendcnc-network "$DATA_DIR"
+# Seed image-provided profiles (wired DHCP) without overwriting saved ones.
+for f in "$ETC_DIR"/*.nmconnection; do
+    [[ -f "$f" ]] || continue
+    [[ -e "$DATA_DIR/${f##*/}" ]] || install -o 0 -g 0 -m 0600 "$f" "$DATA_DIR/${f##*/}"
+done
+chown -R 0:0 "$DATA_DIR"
+chmod 0600 "$DATA_DIR"/* 2>/dev/null || true
+mount --bind "$DATA_DIR" "$ETC_DIR"
+echo "NETPERSIST-READY profiles=$(ls "$DATA_DIR" | wc -l)"

@@ -1,0 +1,46 @@
+#!/bin/bash
+# Forced command for the upload-only `bendimport` SSH account (CAD PCs).
+# Every key in /etc/bendcnc/import_authorized_keys is pinned to this
+# script with `restrict`, so a stolen CAD key can only:
+#   hello                          -> hostname + DIR_OK
+#   put <name> <sha256> <0|1>      -> store stdin as imports/<name> after hash check
+#   get tooling.json|fingers.json  -> read-only tooling catalog for the planner
+#   get materials.json             -> read-only material/thickness tooling preferences
+#   get local-settings.json        -> read-only press settings (punch side tolerance)
+set -euo pipefail
+IMPORTS=/data/bendcnc-qt-state/imports
+VIEWER=/data/bendcnc-unfold/viewer
+CURRENT=/data/bendcnc-qt-state/data/BendCNC/BendCNC/current
+[ -d "$CURRENT" ] || CURRENT=/data/bendcnc-qt-state/data/BendOS/BendCNC/current
+MAX_BYTES=$((64 * 1024 * 1024))
+
+read -r -a ARGS <<< "${SSH_ORIGINAL_COMMAND:-}"
+case "${ARGS[0]:-}" in
+    hello)
+        hostname
+        [ -d "$IMPORTS" ] && [ -w "$IMPORTS" ] && echo DIR_OK || echo DIR_MISSING
+        ;;
+    put)
+        name="${ARGS[1]:-}"; sha="${ARGS[2]:-}"; overwrite="${ARGS[3]:-1}"
+        [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._()+-]{0,120}\.(bend|bcbend)$ ]] || { echo "BAD_NAME" >&2; exit 2; }
+        [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { echo "BAD_HASH" >&2; exit 2; }
+        tmp="$IMPORTS/.bcupload-${sha:0:16}.tmp"
+        head -c $((MAX_BYTES + 1)) > "$tmp"
+        if [ "$(stat -c %s "$tmp")" -gt "$MAX_BYTES" ]; then rm -f "$tmp"; echo TOO_LARGE >&2; exit 3; fi
+        if [ "$(sha256sum "$tmp" | cut -d' ' -f1)" != "$sha" ]; then rm -f "$tmp"; echo MISMATCH; exit 3; fi
+        if [ "$overwrite" != 1 ] && [ -e "$IMPORTS/$name" ]; then rm -f "$tmp"; echo EXISTS; exit 4; fi
+        chmod 0664 "$tmp"
+        mv -f "$tmp" "$IMPORTS/$name" && sync && echo OK
+        ;;
+    get)
+        case "${ARGS[1]:-}" in
+            tooling.json|fingers.json) cat "$VIEWER/${ARGS[1]}" ;;
+            materials.json) cat "$CURRENT/materials.json" ;;
+            local-settings.json) cat "$CURRENT/local-settings.json" ;;
+            *) echo "DENIED" >&2; exit 2 ;;
+        esac
+        ;;
+    *)
+        echo "DENIED: upload-only account" >&2; exit 2
+        ;;
+esac

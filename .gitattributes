@@ -1,0 +1,8 @@
+deploy-arm64/*.sh text eol=lf
+deploy-arm64/bendcnc-kiosk-launch text eol=lf
+
+# Patch context whitespace is required to reconstruct the incoming document.
+docs/evidence/20260910-thc-unreviewed.patch text eol=lf -whitespace
+deploy-arm64/device-bind/*.sh text eol=lf
+deploy-arm64/bendcnc-* text eol=lf
+deploy-arm64/tests/*.sh text eol=lf

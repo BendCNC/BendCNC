@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Main.qml</file>
+        <file>Keyboard.qml</file>
+        <file>eula.txt</file>
+    </qresource>
+</RCC>

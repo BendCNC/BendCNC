@@ -1,0 +1,121 @@
+# Cross-compiles the ARM64 `prototype` binary natively on the build host
+# (no QEMU emulation for the compiler). Requires the ARM64 Qt image
+# produced from Dockerfile's qt-runtime-build stage (see build-arm64.ps1 -Cross).
+# Output: /out/prototype, consumed by Dockerfile via `--build-context build=...`.
+
+ARG QT_ARM_IMAGE=bendcnc/qt-arm64:6.11.2
+
+FROM --platform=$BUILDPLATFORM ubuntu:22.04 AS host-qt
+
+ARG QT_VERSION=6.11.2
+ARG QT_DOWNLOAD_ROOT=https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates cmake curl ninja-build perl pkg-config python3 xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /qt-src
+RUN for module in qtbase qtshadertools qtdeclarative qtcanvaspainter; do \
+        curl --fail --location --retry 5 \
+            "$QT_DOWNLOAD_ROOT/${module}-everywhere-src-$QT_VERSION.tar.xz" --output "$module.tar.xz"; \
+        mkdir "$module"; \
+        tar -xJf "$module.tar.xz" --strip-components=1 -C "$module"; \
+        rm "$module.tar.xz"; \
+    done
+
+# Host tools only (moc, rcc, uic, qmlcachegen, qsb, ...) used by the cross build.
+RUN cmake -S /qt-src/qtbase -B /qt-build/qtbase -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/qt-host \
+        -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+        -DFEATURE_xcb=OFF -DINPUT_opengl=no -DFEATURE_widgets=OFF -DFEATURE_dbus=OFF \
+    && cmake --build /qt-build/qtbase --parallel \
+    && cmake --install /qt-build/qtbase
+RUN for module in qtshadertools qtdeclarative qtcanvaspainter; do \
+        mkdir -p /qt-build/$module && cd /qt-build/$module \
+        && /opt/qt-host/bin/qt-configure-module /qt-src/$module \
+            -- -DCMAKE_BUILD_TYPE=Release -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+        && cmake --build . --parallel \
+        && cmake --install . || exit 1; \
+    done
+# Quick3D host tools (LIVE 3D view); separate layer keeps the above cached.
+RUN curl --fail --location --retry 5 \
+        "$QT_DOWNLOAD_ROOT/qtquick3d-everywhere-src-$QT_VERSION.tar.xz" --output /tmp/q3d.tar.xz \
+    && mkdir /qt-src/qtquick3d && tar -xJf /tmp/q3d.tar.xz --strip-components=1 -C /qt-src/qtquick3d \
+    && rm /tmp/q3d.tar.xz && mkdir -p /qt-build/qtquick3d && cd /qt-build/qtquick3d \
+    && /opt/qt-host/bin/qt-configure-module /qt-src/qtquick3d \
+        -- -DCMAKE_BUILD_TYPE=Release -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+        -DQT_FEATURE_quick3d_assimp=OFF -DQT_FEATURE_quick3dxr_openxr=OFF \
+    && cmake --build . --parallel && cmake --install .
+
+FROM --platform=linux/arm64 ubuntu:22.04 AS sysroot
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libc6-dev libstdc++-11-dev \
+        libdbus-1-dev libdrm-dev libegl1-mesa-dev libfontconfig1-dev libfreetype6-dev \
+        libgbm-dev libgl-dev libharfbuzz-dev libinput-dev libjpeg-dev libpng-dev \
+        libxkbcommon-dev libwayland-dev \
+    && rm -rf /var/lib/apt/lists/*
+# OpenSSL headers for licensed builds. Extracted without dpkg triggers: the
+# libc-bin ldconfig trigger segfaults under QEMU.
+RUN apt-get update && cd /tmp && apt-get download libssl-dev libssl3 \
+    && for d in /tmp/*.deb; do dpkg-deb -x "$d" /; done \
+    && rm -rf /tmp/*.deb /var/lib/apt/lists/*
+
+FROM ${QT_ARM_IMAGE} AS arm-qt
+
+FROM --platform=$BUILDPLATFORM ubuntu:22.04 AS cross-base
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        g++-11-aarch64-linux-gnu binutils-aarch64-linux-gnu cmake ninja-build pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=sysroot /usr /sysroot/usr
+RUN ln -s usr/lib /sysroot/lib && ln -s usr/bin /sysroot/bin
+COPY --from=arm-qt /opt/qt /opt/qt
+COPY --from=host-qt /opt/qt-host /opt/qt-host
+COPY deploy-arm64/aarch64-toolchain.cmake /toolchain.cmake
+
+ENV PKG_CONFIG_SYSROOT_DIR=/sysroot \
+    PKG_CONFIG_LIBDIR=/sysroot/usr/lib/aarch64-linux-gnu/pkgconfig:/sysroot/usr/share/pkgconfig
+
+# BendCNC first-boot wizard (--target export-setup).
+FROM cross-base AS setup-build
+COPY qt/setup /src/setup
+COPY qt/src/LicenseManager.cpp qt/src/LicenseManager.h /src/src/
+RUN cmake -S /src/setup -B /build-setup -G Ninja -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_TOOLCHAIN_FILE=/toolchain.cmake -DQT_HOST_PATH=/opt/qt-host -DCMAKE_PREFIX_PATH=/opt/qt \
+    && cmake --build /build-setup --parallel \
+    && install -D -m 0755 /build-setup/bendcnc-setup /out/bendcnc-setup \
+    && install -m 0755 /src/setup/bendcnc-install.sh /out/bendcnc-install.sh \
+    && aarch64-linux-gnu-readelf -h /out/bendcnc-setup | grep -F 'AArch64'
+
+FROM scratch AS export-setup
+COPY --from=setup-build /out /out
+
+FROM cross-base AS cross
+ARG LICENSING=OFF
+ARG LICENSE_SERVER=
+ARG LICENSE_PUBKEY=
+ARG GIT_COMMIT=unknown
+WORKDIR /src
+COPY qt/ .
+RUN cmake -S . -B /build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+        -DCMAKE_TOOLCHAIN_FILE=/toolchain.cmake \
+        -DQT_HOST_PATH=/opt/qt-host -DCMAKE_PREFIX_PATH=/opt/qt \
+        -DBENDCNC_REQUIRE_CANVAS_PAINTER=ON \
+        -DBENDCNC_LICENSING=${LICENSING} \
+        "-DBENDCNC_LICENSE_SERVER=${LICENSE_SERVER}" "-DBENDCNC_LICENSE_PUBKEY=${LICENSE_PUBKEY}" \
+        "-DBENDCNC_GIT_COMMIT=${GIT_COMMIT}" \
+    && cmake --build /build --target prototype --parallel \
+    && install -D -m 0755 /build/prototype /out/prototype \
+    && aarch64-linux-gnu-readelf -h /out/prototype | grep -F 'AArch64' \
+    && aarch64-linux-gnu-readelf -d /out/prototype | grep -F 'libQt6CanvasPainter.so.6' \
+    && aarch64-linux-gnu-readelf -d /out/prototype | grep -F 'libQt6Quick3D.so.6'
+
+FROM scratch AS export
+COPY --from=cross /out /out

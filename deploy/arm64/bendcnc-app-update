@@ -1,0 +1,51 @@
+#!/bin/bash
+# BendCNC in-app updater (root). Installed at /usr/local/sbin/bendcnc-app-update.
+# The kiosk (cnc) may only run: sudo -n bendcnc-app-update queue|status
+#   queue  - re-verify the staged bundle and start `run` in its own systemd unit
+#            (the deploy stops the kiosk service, which would kill a child process).
+#   run    - decompress and hand over to the transactional bendcnc-deploy-kiosk
+#            (keeps /data/bendcnc-qt.previous and rolls back if the kiosk fails).
+set -euo pipefail
+DIR=/data/bendcnc-updates
+BUNDLE="$DIR/app-update.tar.zst"
+SIDECAR="$BUNDLE.sha256"
+STATUS="$DIR/status"
+TAR=/tmp/bendcnc-qt-arm64.tar
+DEPLOY=/usr/local/sbin/bendcnc-deploy-kiosk
+
+status() { printf 'state=%s\nversion=%s\nmessage=%s\ntime=%s\n' "$1" "$2" "$3" "$(date -u +%FT%TZ)" > "$STATUS"; }
+
+verify() {
+    [[ -f "$BUNDLE" && -f "$SIDECAR" ]] || { echo "no staged update" >&2; exit 2; }
+    read -r SHA VERSION < "$SIDECAR"
+    [[ "$SHA" =~ ^[0-9a-f]{64}$ && "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad sidecar" >&2; exit 2; }
+    [[ "$(sha256sum "$BUNDLE" | cut -d' ' -f1)" == "$SHA" ]] || { echo "sha256 mismatch" >&2; exit 3; }
+}
+
+case "${1:-}" in
+    queue)
+        verify
+        status QUEUED "$VERSION" "Installing $VERSION"
+        systemd-run --collect --unit="bendcnc-app-update-$(date +%s)" "$0" run
+        ;;
+    run)
+        verify
+        rm -f "$TAR"
+        if ! zstd -q -d -f "$BUNDLE" -o "$TAR"; then
+            status FAILED "$VERSION" "Bundle decompression failed"; exit 4
+        fi
+        if "$DEPLOY" "$TAR"; then
+            status INSTALLED "$VERSION" "BendCNC $VERSION installed"
+            rm -f "$BUNDLE" "$SIDECAR"
+        else
+            status ROLLED_BACK "$VERSION" "Update $VERSION failed to start; previous version restored"
+        fi
+        rm -f "$TAR"
+        ;;
+    status)
+        cat "$STATUS" 2>/dev/null || true
+        ;;
+    *)
+        echo "usage: $0 queue|status" >&2; exit 64
+        ;;
+esac

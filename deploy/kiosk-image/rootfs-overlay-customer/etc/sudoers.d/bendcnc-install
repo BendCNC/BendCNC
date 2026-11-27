@@ -1,0 +1,2 @@
+cnc ALL=(root) NOPASSWD: /usr/lib/bendcnc/bendcnc-install.sh
+cnc ALL=(root) NOPASSWD: /usr/local/sbin/bendcnc-wifi-connect

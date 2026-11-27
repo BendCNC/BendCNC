@@ -1,0 +1,16 @@
+#!/bin/bash
+# The root filesystem is a tmpfs overlay, so host keys generated in /etc are lost
+# on every reboot. Generate them once per machine, keep them on /data and restore
+# them before ssh.service starts (without keys sshd fails and port 22 refuses).
+set -eu
+STORE=/data/bendcnc-qt-state/ssh-hostkeys
+install -d -m 0700 -o root -g root "$STORE"
+if ! ls "$STORE"/ssh_host_*_key >/dev/null 2>&1; then
+    rm -f /etc/ssh/ssh_host_*
+    ssh-keygen -A
+    cp -p /etc/ssh/ssh_host_* "$STORE"/
+fi
+cp -p "$STORE"/ssh_host_* /etc/ssh/
+chmod 0600 /etc/ssh/ssh_host_*_key
+chmod 0644 /etc/ssh/ssh_host_*_key.pub
+systemctl reset-failed ssh.service 2>/dev/null || true

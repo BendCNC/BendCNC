@@ -1,0 +1,51 @@
+#!/bin/bash
+set -euo pipefail
+
+APP_DIR=/data/bendcnc-qt
+QT_LIB="$APP_DIR/runtime/usr/lib/aarch64-linux-gnu"
+RUNTIME_LIB="$APP_DIR/runtime/lib/aarch64-linux-gnu"
+PLUGINS="$QT_LIB/qt6/plugins"
+
+required=(
+    "$APP_DIR/prototype"
+    "$PLUGINS/platforms/libqeglfs.so"
+    "$PLUGINS/egldeviceintegrations/libqeglfs-kms-integration.so"
+    /etc/bendcnc/eglfs-kms.json
+    /dev/dri/card0
+)
+for path in "${required[@]}"; do
+    if [[ ! -e "$path" ]]; then
+        echo "PREFLIGHT-ERROR missing=$path" >&2
+        exit 31
+    fi
+done
+
+if pgrep -x java >/dev/null 2>&1; then
+    echo "PREFLIGHT-ERROR Java is running; refusing dual ownership" >&2
+    exit 32
+fi
+if pgrep -x gnome-shell >/dev/null 2>&1 || pgrep -x weston >/dev/null 2>&1 || pgrep -x Xorg >/dev/null 2>&1 || pgrep -x Xwayland >/dev/null 2>&1; then
+    echo "PREFLIGHT-ERROR another display server owns DRM" >&2
+    exit 33
+fi
+
+# systemd creates /run/bendcnc with RuntimeDirectory= before this script
+# runs as the unprivileged cnc user. Creating it here would fail because /run
+# itself is root-owned on a clean boot.
+[[ -d /run/bendcnc && -w /run/bendcnc ]] || {
+    echo "PREFLIGHT-ERROR runtime-directory-unavailable=/run/bendcnc" >&2
+    exit 35
+}
+mkdir -p /data/bendcnc-qt-state/{data,config,state}
+
+if [[ ! -d /sys/class/ieee80211 ]] || ! compgen -G '/sys/class/ieee80211/*' >/dev/null; then
+    echo "PREFLIGHT-WARN wifi-phy-unavailable modules=$(lsmod | awk '$1 == \"brcmfmac\" || $1 == \"sprdwl_ng\" {printf \"%s,\", $1}')" >&2
+fi
+
+LD_LIBRARY_PATH="$QT_LIB:$RUNTIME_LIB" ldd "$APP_DIR/prototype" > /run/bendcnc/prototype.ldd
+if grep -Fq 'not found' /run/bendcnc/prototype.ldd; then
+    grep -F 'not found' /run/bendcnc/prototype.ldd >&2
+    exit 34
+fi
+
+echo "PREFLIGHT-READY qpa=eglfs integration=eglfs_kms drm=/dev/dri/card0"

@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=BendCNC
+Description=BendCNC
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/bendcnc
+ScriptFile=/usr/share/plymouth/themes/bendcnc/bendcnc.script

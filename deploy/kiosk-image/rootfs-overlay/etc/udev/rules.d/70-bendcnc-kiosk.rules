@@ -1,0 +1,4 @@
+SUBSYSTEM=="tty", KERNEL=="ttyACM[0-9]*|ttyUSB[0-9]*", GROUP="dialout", MODE="0660"
+SUBSYSTEM=="drm", KERNEL=="card[0-9]*", GROUP="video", MODE="0660", TAG+="systemd"
+SUBSYSTEM=="drm", KERNEL=="renderD[0-9]*", GROUP="render", MODE="0660"
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="eGalax Inc. eGalaxTouch EXC7910-1138-48.00.00", GROUP="input", MODE="0660", ENV{ID_INPUT_TOUCHSCREEN}="1"

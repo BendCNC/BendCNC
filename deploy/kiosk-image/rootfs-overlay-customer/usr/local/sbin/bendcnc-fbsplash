@@ -1,0 +1,59 @@
+#!/usr/bin/python3
+"""Draw the BendCNC splash on /dev/fb0 as soon as the HDMI framebuffer exists.
+
+Plymouth starts before the Rockchip VOP2 has a CRTC and gives up, so the panel
+stays black. This runs in parallel (nothing waits on it) and polls for fb0.
+"""
+import fcntl, os, struct, sys, time, zlib
+
+IMG = "/usr/share/bendcnc/splash.bgrx.z"
+FB = "/dev/fb0"
+FBIOGET_VSCREENINFO, FBIOPUT_VSCREENINFO, FBIOBLANK = 0x4600, 0x4601, 0x4611
+
+deadline = time.monotonic() + 40
+while not os.path.exists(FB):
+    if time.monotonic() > deadline:
+        sys.exit(0)
+    time.sleep(0.05)
+
+def attr(name):
+    with open("/sys/class/graphics/fb0/" + name) as f:
+        return f.read().strip()
+
+try:
+    for _ in range(100):
+        try:
+            w, h = (int(v) for v in attr("virtual_size").split(","))
+            if w and h:
+                break
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.05)
+    bpp = int(attr("bits_per_pixel"))
+    stride = int(attr("stride"))
+    if bpp != 32:
+        sys.exit(0)
+    with open(IMG, "rb") as f:
+        iw, ih = struct.unpack("<II", f.read(8))
+        src = zlib.decompress(f.read())
+    with open(FB, "r+b", buffering=0) as fb:
+        vinfo = bytearray(160)
+        fcntl.ioctl(fb, FBIOGET_VSCREENINFO, vinfo)
+        fcntl.ioctl(fb, FBIOPUT_VSCREENINFO, vinfo)  # forces the KMS modeset
+        try:
+            fcntl.ioctl(fb, FBIOBLANK, 0)
+        except OSError:
+            pass
+        bg = src[:4]
+        cw, ch = min(w, iw), min(h, ih)
+        ox, oy = (w - cw) // 2, (h - ch) // 2
+        sx, sy = (iw - cw) // 2, (ih - ch) // 2
+        out = bytearray(bg * (stride // 4) * h)
+        for y in range(ch):
+            s = ((sy + y) * iw + sx) * 4
+            d = (oy + y) * stride + ox * 4
+            out[d:d + cw * 4] = src[s:s + cw * 4]
+        fb.write(out)
+except Exception as e:  # never block or fail boot
+    print(f"fbsplash: {e}", file=sys.stderr)
+sys.exit(0)

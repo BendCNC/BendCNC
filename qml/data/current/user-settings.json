@@ -1,0 +1,28 @@
+{
+  "materialClampRate": 5.0,
+  "autoClampToBendEnabled": true,
+  "autoClampToBendDwellSec": 3.0,
+  "backGaugeRetractBetweenBendsInch": 2.0,
+  "backGaugeBumpOffDistanceInch": 1.0,
+  "manualModeSafetyPlaneClearance": {
+    "value": 0.06,
+    "unit": "INCH"
+  },
+  "manualModeStartRamPosition": {
+    "value": -1.0,
+    "unit": "INCH"
+  },
+  "manualModeEndRamPosition": {
+    "value": -1.0001,
+    "unit": "INCH"
+  },
+  "manualModeMaxTonnagePerRam": 12.5,
+  "jogStep": {
+    "value": 0.1,
+    "unit": "INCH"
+  },
+  "manualModeMoveToPosition": {
+    "value": -1.5,
+    "unit": "INCH"
+  }
+}

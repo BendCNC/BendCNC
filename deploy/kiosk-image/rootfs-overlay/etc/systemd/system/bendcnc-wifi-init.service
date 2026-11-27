@@ -1,0 +1,12 @@
+[Unit]
+Description=BendCNC onboard WiFi driver initialization
+After=systemd-modules-load.service systemd-udev-trigger.service
+Before=NetworkManager.service bendcnc-qt-kiosk.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bendcnc-wifi-init
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+APP_DIR=/data/bendcnc-qt
+QT_ROOT="$APP_DIR/runtime/usr"
+QT_LIB="$QT_ROOT/lib/aarch64-linux-gnu"
+RUNTIME_LIB="$APP_DIR/runtime/lib/aarch64-linux-gnu"
+
+export LD_LIBRARY_PATH="$QT_LIB:$RUNTIME_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export QT_PLUGIN_PATH="$QT_LIB/qt6/plugins"
+export QML2_IMPORT_PATH="$QT_LIB/qt6/qml"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/bendcnc}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-/data/bendcnc-qt-state/data}"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-/data/bendcnc-qt-state/config}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-/data/bendcnc-qt-state/state}"
+
+cd "$APP_DIR"
+exec "$APP_DIR/prototype" --fullscreen --run-debug-logs-off \
+	--run-canvas-immediate --serial-debug-logs-off \
+	--commissioning-home-socket=/run/bendcnc/home-press.sock

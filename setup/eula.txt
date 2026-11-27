@@ -1,0 +1,53 @@
+BENDCNC LICENSE AGREEMENT
+
+Please read this agreement to the end. By tapping Accept you agree to these terms.
+
+
+1. OPEN SOURCE LICENSE (GNU GPL v3)
+
+BendCNC is free software. You can modify it under the terms of the GNU General Public License, version 3, as published by the Free Software Foundation.
+
+Source code: https://github.com/BendCNC
+Full license text: https://www.gnu.org/licenses/gpl-3.0.html
+
+Some components (for example the Qt framework and the Linux operating system) are distributed under their own open source licenses. Those licenses are included with the system image and take precedence for those components.
+
+
+2. BENDCNC ONLINE SERVICES
+
+This machine connects to BendCNC servers for machine registration, license verification, software and firmware updates, and optional debug reports that you choose to send.
+
+
+3. YOUR DATA
+
+During setup and use we store your email address, this machine's hardware identifier, the installed software and firmware versions.
+
+We use this data only for licensing, updates, security and support. Debug reports are sent only when you request it.
+
+
+4. SAFETY
+
+BendCNC controls industrial machinery that can cause serious injury or death. You are responsible for:
+  - safe installation, guarding and correct wiring of the machine;
+  - training and supervising every operator;
+  - compliance with the machinery and safety regulations that apply where the machine is used;
+  - keeping emergency stops and other safety devices working at all times.
+
+The software is not a safety device and must never replace one. Do not disable, bypass or modify safety functions.
+
+
+5. NO WARRANTY
+
+As stated in sections 15 and 16 of the GNU GPL v3, the software is provided "AS IS", without warranty of any kind, express or implied, including fitness for a particular purpose. The entire risk as to the quality and performance of the software is with you.
+
+
+6. LIMITATION OF LIABILITY
+
+To the maximum extent permitted by law, BendCNC and its contributors are not liable for any damages arising from the use or inability to use the software or the online services, including injury, damage to parts, tooling or machinery, lost production or lost profits.
+
+
+7. GENERAL
+
+We may update this agreement; the machine will ask you to accept any new version before it applies. If any part of this agreement is found unenforceable, the rest remains in effect. Nothing in this agreement limits the rights you have under the GNU GPL v3.
+
+Contact: support@bendcnc.com

@@ -1,0 +1,14 @@
+[Unit]
+Description=BendCNC per-machine SSH host keys (persisted on /data)
+DefaultDependencies=no
+After=local-fs.target
+RequiresMountsFor=/data
+Before=ssh.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/bendcnc-hostkeys
+
+[Install]
+WantedBy=ssh.service multi-user.target
