@@ -79,7 +79,8 @@ git -C "$REPO/sequence-planner" rev-parse --short=12 HEAD > "$PL/ENGINE_REVISION
 find "$PL" \( -name __pycache__ -o -name '*.test.mjs' \) -prune -exec rm -rf {} +
 curl -fsSL "https://nodejs.org/dist/v$NODE_VER/node-v$NODE_VER-linux-arm64.tar.xz" \
     | tar -xJ -C "$PL/runtime/node" --strip-components=1
-rm -rf "$PL/runtime/node/include" "$PL/runtime/node/share" "$PL/runtime/node/lib/node_modules/npm" "$PL/runtime/node/lib/node_modules/corepack"
+rm -rf "$PL/runtime/node/include" "$PL/runtime/node/share" "$PL/runtime/node/lib/node_modules/npm" "$PL/runtime/node/lib/node_modules/corepack" \
+    "$PL/runtime/node/bin/npm" "$PL/runtime/node/bin/npx" "$PL/runtime/node/bin/corepack"
 docker run --rm -v "$PL/runtime/python:/t" python:3.10-slim pip install -q --no-cache-dir --target /t \
     --platform manylinux2014_aarch64 --platform manylinux_2_17_aarch64 --python-version 3.10 \
     --implementation cp --only-binary=:all: shapely==2.1.2 numpy==2.2.6 networkx==3.4.2
