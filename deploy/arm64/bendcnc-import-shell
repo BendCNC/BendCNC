@@ -20,9 +20,22 @@ case "${ARGS[0]:-}" in
         hostname
         [ -d "$IMPORTS" ] && [ -w "$IMPORTS" ] && echo DIR_OK || echo DIR_MISSING
         ;;
-    put)
+    put|putx)
         name="${ARGS[1]:-}"; sha="${ARGS[2]:-}"; overwrite="${ARGS[3]:-1}"
-        [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._()+-]{0,120}\.(bend|bcbend)$ ]] || { echo "BAD_NAME" >&2; exit 2; }
+        if [ "${ARGS[0]}" = putx ]; then
+            # base64url UTF-8 name: allows spaces/accents, never path or control chars.
+            [[ "$name" =~ ^[A-Za-z0-9_-]{1,400}$ ]] || { echo "BAD_NAME" >&2; exit 2; }
+            b=$(printf '%s' "$name" | tr '_-' '/+'); while [ $(( ${#b} % 4 )) -ne 0 ]; do b="$b="; done
+            raw=$(printf '%s' "$b" | base64 -d 2>/dev/null | od -An -v -tx1 | tr -d ' \n') || { echo "BAD_NAME" >&2; exit 2; }
+            # Reject NUL/control bytes (incl. newline) before bash can silently drop them.
+            [[ -n "$raw" && ! "$raw" =~ ^(..)*(0[0-9a-f]|1[0-9a-f]|7f) ]] || { echo "BAD_NAME" >&2; exit 2; }
+            name=$(printf '%s' "$b" | base64 -d)
+            printf '%s' "$name" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 || { echo "BAD_NAME" >&2; exit 2; }
+            if [[ "$name" == */* || "$name" == *\\* || "$name" == .* || "$name" == *" " || ${#name} -gt 160 ]] \
+                || ! [[ "$name" =~ \.(bend|bcbend)$ ]]; then echo "BAD_NAME" >&2; exit 2; fi
+        else
+            [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._()+-]{0,120}\.(bend|bcbend)$ ]] || { echo "BAD_NAME" >&2; exit 2; }
+        fi
         [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { echo "BAD_HASH" >&2; exit 2; }
         tmp="$IMPORTS/.bcupload-${sha:0:16}.tmp"
         head -c $((MAX_BYTES + 1)) > "$tmp"
