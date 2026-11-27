@@ -410,12 +410,15 @@ Rectangle {
                             Repeater {
                                 model: {
                                     var tags = []
+                                    if (optionCard.meta.flangeGauge)
+                                        return [[optionCard.meta.flangeGaugeApplied ? "FINGERS WIDEST" : "FINGERS ON FLANGE", "#7C3AED"]]
                                     if (optionCard.modelData.active) tags.push(["ACTIVE", green])
                                     if (optionCard.meta.preferred) tags.push(["PREFERRED", "#0284C7"])
                                     var options = root.appState ? root.appState.cadToolingOptions : []
                                     var closest = true
                                     for (var i = 0; i < options.length; i++)
-                                        if (Math.abs(options[i].meta.radiusErrorMm) < Math.abs(optionCard.meta.radiusErrorMm))
+                                        if (!options[i].meta.flangeGauge
+                                                && Math.abs(options[i].meta.radiusErrorMm) < Math.abs(optionCard.meta.radiusErrorMm))
                                             closest = false
                                     if (closest) tags.push(["CLOSEST R", teal])
                                     if (!optionCard.meta.clear) tags.push(["NOT VIABLE", red])
@@ -492,6 +495,22 @@ Rectangle {
                                     text: modelData[0] + ":  " + modelData[1]
                                     color: "#E2E8F0"; font.pixelSize: 11
                                 }
+                            }
+                        }
+                        Text {
+                            visible: !!optionCard.meta.flangeGauge
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: "#E9D5FF"; font.pixelSize: 11
+                            text: {
+                                var steps = optionCard.meta.flangeSteps || []
+                                var lines = [optionCard.meta.flangeGaugeApplied
+                                             ? "Same tooling and route; fingers back to widest spacing:"
+                                             : "Same tooling and route; fingers on the flange being bent:"]
+                                for (var i = 0; i < steps.length; i++)
+                                    lines.push("Stroke " + steps[i].stroke + ": BG " + Number(steps[i].fromIn).toFixed(4)
+                                               + " -> " + Number(steps[i].toIn).toFixed(4) + " in")
+                                return lines.join("\n")
                             }
                         }
                         Item { Layout.fillHeight: true }

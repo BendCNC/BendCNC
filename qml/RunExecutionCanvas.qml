@@ -11346,7 +11346,7 @@ Rectangle {
             phase = "RUN / RETRACT"
         }
         var gaugeWorkX = programmedX + Math.max(0, -ref - gaugeFaceX)
-        return { gaugeFaceX: gaugeFaceX, gaugeWorkX: gaugeWorkX,
+        return { gaugeFaceX: gaugeFaceX, gaugeSeatFaceX: -ref, gaugeWorkX: gaugeWorkX,
             gaugeWorkR: programmedR, centerX: 0, punchTipR: punchTipR,
             centerR: centerR, armRiseDeg: armRiseDeg, phase: phase,
             thickness: thickness, angle: angle, dieProfile: activeProfile }
@@ -11395,7 +11395,7 @@ Rectangle {
         var phase = physicalTelemetryFresh
             ? "LIVE / " + String(physicalExecutionPhase || physicalPressState).replace(/_/g, " ")
             : "LIVE / TELEMETRY STALE"
-        return { gaugeFaceX: gaugeFaceX, gaugeWorkX: gaugeX,
+        return { gaugeFaceX: gaugeFaceX, gaugeSeatFaceX: -ref, gaugeWorkX: gaugeX,
             gaugeWorkR: gaugeR, programmedR: programmedR,
             centerX: 0, punchTipR: punchTipR,
             centerR: centerR, armRiseDeg: armRiseDeg, phase: phase,
@@ -16123,6 +16123,7 @@ Rectangle {
             panelStates: states,
             punchTipR: finite(pose.punchTipR, 0),
             gaugeFaceX: finite(pose.gaugeFaceX, 0),
+            gaugeSeatFaceX: finite(pose.gaugeSeatFaceX, finite(pose.gaugeFaceX, 0)),
             fingerContactR: finite(backgaugeFingerContactR(pose), 0),
             phase: String(pose.phase || ""),
             collision: !!(artifacts.collisions && artifacts.collisions.any),

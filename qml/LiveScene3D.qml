@@ -146,7 +146,11 @@ Item {
         // protrude past the gauge (the finger would sit inside them).
         // Final seated pose (the entry transition offset is temporary), so the
         // stations are set as soon as the new bend appears, not after entry.
-        var gaugeLocalX = frame ? frame.gaugeFaceX - partModel.x : NaN
+        // Seated (programmed) face X: during the backgauge travel the live
+        // face is away from the edge, but the lateral stations already belong
+        // to the target sequence.
+        var gaugeLocalX = frame ? (frame.gaugeSeatFaceX !== undefined ? frame.gaugeSeatFaceX
+                                   : frame.gaugeFaceX) - partModel.x : NaN
         var span = partGeom.gaugeContactSpanAt(0.06, gaugeLocalX)
         var depth = fingerDepthIn, gap = canvas ? canvas.backgaugeFingerMinGapIn : 0.5
         fingerNode2.x = fingerNode.x
@@ -535,6 +539,9 @@ Item {
         return "top-ortho"
     }
     property bool partOnly: true
+    // BEND framing: fixed close-up on the bend zone (punch tip / die V),
+    // showing the nearby finger and part.
+    property bool bendCloseUp: false
     property bool autoFitPending: true
     property string seatBend: ""
     property int badgeTick: 0
@@ -667,12 +674,31 @@ Item {
             return 0
         return -(b.minimum.z + b.maximum.z) / 2 * unitScale
     }
-    function fitView(onlyPart) {
+    function fitBendCloseUp() {
+        var partBox = unionBounds([partModel])
+        if (!partBox)
+            return false
+        // Hinge is centred under the punch (scene x = 0); radius reaches part
+        // of the finger without losing the radius/V detail.
+        var ref = Math.abs(fingerNode.x) / unitScale
+        var r = Math.max(1.5, Math.min(4, ref * 0.6)) * unitScale
+        cameraOrigin.eulerRotation = viewEuler[viewMode]
+        var center = Qt.vector3d(-r * 0.25, punchNode.y, (partBox.lo.z + partBox.hi.z) / 2)
+        applyFit(center, r, partBox.lo.z - 10, partBox.hi.z + 10)
+        if (sideView)
+            orthoCamera.position = Qt.vector3d(0, 0, (partBox.hi.z - partBox.lo.z) * 4 + 200)
+        autoFitPending = false
+        return true
+    }
+    function fitView(onlyPart, closeUp) {
         if (onlyPart !== undefined) {
             partOnly = onlyPart
+            bendCloseUp = closeUp === true
             userAdjusted = false
             frozenFit = null
         }
+        if (bendCloseUp && fitBendCloseUp())
+            return
         if (sideView && fitSideToPart())
             return
         if (fpsLog)
@@ -1193,6 +1219,7 @@ Item {
                 model: [
                     { label: qsTr("All"), fit: false },
                     { label: qsTr("Part"), fit: true },
+                    { label: qsTr("Bend"), fit: true, closeUp: true },
                     { sep: true },
                     { label: qsTr("Top"), mode: "top" },
                     { label: qsTr("Ortho"), mode: "top-ortho" },
@@ -1210,7 +1237,7 @@ Item {
                         : modelData.info ? root.showInfo
                         : modelData.mode !== undefined
                         ? root.viewMode === modelData.mode
-                        : root.partOnly === modelData.fit
+                        : (root.partOnly === modelData.fit && root.bendCloseUp === (modelData.closeUp === true))
                     width: 56
                     height: isSep ? 1 : btnText.implicitHeight + 16
                     Rectangle {
@@ -1251,7 +1278,7 @@ Item {
                                 } else if (modelData.mode !== undefined) {
                                     root.setViewMode(modelData.mode)
                                 } else {
-                                    root.fitView(modelData.fit)
+                                    root.fitView(modelData.fit, modelData.closeUp)
                                 }
                             }
                         }

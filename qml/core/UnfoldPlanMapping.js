@@ -129,6 +129,13 @@ function compactPlan(plan) {
         compact.toolingSelection = plan.toolingSelection;
     if (plan && plan.planRequestKey)
         compact.planRequestKey = plan.planRequestKey;
+    if (plan && plan.flangeGaugeOption && Array.isArray(plan.flangeGaugeOption.steps)) {
+        var fg = plan.flangeGaugeOption, fsteps = [];
+        for (var f = 0; f < fg.steps.length; f++)
+            fsteps.push({ stageIndex: Number(fg.steps[f].stageIndex), bendId: String(fg.steps[f].bendId),
+                          panelId: String(fg.steps[f].panelId), backgauge: compactBackgauge(fg.steps[f].backgauge) });
+        compact.flangeGaugeOption = { applied: fg.applied === true, steps: fsteps };
+    }
     // Other collision-clear tooling alternatives, each a full compact plan.
     var alternatives = plan && Array.isArray(plan.alternativePlans) ? plan.alternativePlans : [];
     if (alternatives.length > 0) {
@@ -142,10 +149,59 @@ function compactPlan(plan) {
 
 // Alternative cards: the active plan plus its clear alternatives, each with
 // the ranking metrics of toolingSelection.alternatives[index].
+// Pseudo alternative index: same route and tooling, fingers on the flange
+// being bent (planner's flangeGaugeOption) instead of the widest spacing.
+var FLANGE_GAUGE_INDEX = 1000;
+
+// Exchange stage backgauges with the flange option (works on full or compact
+// plans: both keep stages[i].backgauge and flangeGaugeOption.steps[k].backgauge).
+function swapFlangeGauge(plan) {
+    var next = JSON.parse(JSON.stringify(plan));
+    var option = next.flangeGaugeOption;
+    for (var k = 0; k < option.steps.length; k++) {
+        var step = option.steps[k], stage = next.stages[step.stageIndex];
+        var previous = stage.backgauge;
+        stage.backgauge = step.backgauge;
+        step.backgauge = previous;
+    }
+    option.applied = !option.applied;
+    next.alternativePlans = plan.alternativePlans;
+    return next;
+}
+
+function gaugeEdgeMm(bg) {
+    if (!bg)
+        return NaN;
+    if (isFinite(Number(bg.edgeXMm)))
+        return Number(bg.edgeXMm);
+    var compact = compactBackgauge(bg);
+    return compact ? compact.edgeXMm : NaN;
+}
+
+function flangeGaugeOptionEntry(plan, selection) {
+    var option = plan && plan.flangeGaugeOption;
+    if (!option || !Array.isArray(option.steps) || option.steps.length === 0)
+        return null;
+    var base = selection && Array.isArray(selection.alternatives)
+            ? selection.alternatives[Number(selection.selectedIndex)] : null;
+    var meta = JSON.parse(JSON.stringify(base || { dieName: "", punchName: "", clear: true }));
+    meta.flangeGauge = true;
+    meta.flangeGaugeApplied = option.applied === true;
+    meta.flangeSteps = [];
+    for (var k = 0; k < option.steps.length; k++) {
+        var step = option.steps[k], stage = plan.stages && plan.stages[step.stageIndex];
+        var fromMm = gaugeEdgeMm(stage && stage.backgauge);
+        var toMm = gaugeEdgeMm(step.backgauge);
+        meta.flangeSteps.push({ stroke: step.stageIndex + 1, fromIn: fromMm / MM_PER_IN, toIn: toMm / MM_PER_IN });
+    }
+    return { index: FLANGE_GAUGE_INDEX, meta: meta, active: false, available: true, plan: null };
+}
+
 function toolingOptions(plan) {
     var selection = plan && plan.toolingSelection;
+    var flange = flangeGaugeOptionEntry(plan, selection);
     if (!selection || !Array.isArray(selection.alternatives))
-        return [];
+        return flange ? [flange] : [];
     var options = [];
     for (var i = 0; i < selection.alternatives.length; i++) {
         var meta = selection.alternatives[i];
@@ -160,11 +216,16 @@ function toolingOptions(plan) {
         options.push({ index: i, meta: meta, active: entry.active, available: entry.active || entry.plan !== null,
                        plan: entry.plan });
     }
+    if (flange)
+        options.push(flange);
     return options;
 }
 
 // Swap the active plan with alternative `index`; selection metadata follows.
 function selectAlternative(plan, index) {
+    if (index === FLANGE_GAUGE_INDEX)
+        return plan && plan.flangeGaugeOption && plan.flangeGaugeOption.steps
+                && plan.flangeGaugeOption.steps.length ? swapFlangeGauge(plan) : null;
     var options = toolingOptions(plan);
     var target = null;
     for (var i = 0; i < options.length; i++)
