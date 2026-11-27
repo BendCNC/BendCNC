@@ -6716,6 +6716,11 @@ QtObject {
                                : "Software restart is only available on the Linux controller.",
                       rebootOk ? 0.35 : 1, "message", "CLOSE")
             return rebootOk
+        } else if (action === "check-updates") {
+            log("UPDATE", "Manual application update check requested")
+            if (hostSystem) hostSystem.checkForApplicationUpdates()
+            showPopup("CHECKING FOR UPDATES", "Querying the update server. If a newer release exists, UPDATE APP will appear in the toolbar.", 0.35, "message", "CLOSE")
+            return true
         } else if (action === "update-app") {
             if (!applicationUpdateAvailable) {
                 log("UPDATE", "Application update action rejected: no verified newer release")

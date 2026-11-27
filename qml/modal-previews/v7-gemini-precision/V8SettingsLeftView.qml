@@ -456,7 +456,6 @@ Item {
                                 ? qsTr("Measure only: accept once stable (≥ %1 frames, Δ ≤ %2 in); Calibrate: separate toggle")
                                     .arg(root.appState.manualMeasurementMinimumSamples)
                                     .arg(root.appState.manualMeasurementConvergenceTolerance.toFixed(4))
-                                    .arg(root.appState.manualMeasurementRequiredSamples)
                                 : qsTr("Measure only: accept the average once stable; Calibrate has its own toggle")
                             checked: root.toggleSelected("Measurement Convergence")
                             onToggled: if (root.appState) root.appState.settingsAction("Measurement Convergence")
@@ -469,7 +468,6 @@ Item {
                                 ? qsTr("Calibrate: accept once stable (≥ %1 frames, Δ ≤ %2 in); off = fixed %3 frames")
                                     .arg(root.appState.manualMeasurementMinimumSamples)
                                     .arg(root.appState.manualMeasurementConvergenceTolerance.toFixed(4))
-                                    .arg(root.appState.manualMeasurementRequiredSamples)
                                 : qsTr("Calibrate: accept the average once stable; off keeps the fixed frame count")
                             checked: root.toggleSelected("Calibration Convergence")
                             onToggled: if (root.appState) root.appState.settingsAction("Calibration Convergence")
@@ -940,11 +938,29 @@ Item {
                                 anchors.margins: 10
                                 spacing: 6
 
-                                Text {
-                                    text: qsTr("Software Updates")
-                                    font.bold: true
-                                    font.pixelSize: 11
-                                    color: root.textPrimary
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.appState && root.appState.applicationUpdateAvailable
+                                            ? qsTr("Software Updates — %1 available").arg(root.appState.applicationUpdateVersion)
+                                            : qsTr("Software Updates")
+                                        font.bold: true
+                                        font.pixelSize: 11
+                                        color: root.textPrimary
+                                        elide: Text.ElideRight
+                                    }
+                                    Button {
+                                        objectName: "maintenance-check-updates"
+                                        Layout.preferredWidth: 96
+                                        Layout.preferredHeight: 22
+                                        padding: 0
+                                        enabled: root.appState !== null
+                                        onClicked: root.appState.toolbarAction("check-updates")
+                                        background: Rectangle { radius: 4; color: "#F1F5F9"; border.color: "#CBD5E1" }
+                                        contentItem: Text { text: "⟳ " + qsTr("CHECK"); font.bold: true; font.pixelSize: 10; color: root.textPrimary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                                    }
                                 }
                                 Text {
                                     Layout.fillWidth: true
