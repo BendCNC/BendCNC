@@ -17,6 +17,7 @@ t setup-wizard    "[ -x $R/usr/lib/bendcnc/bendcnc-setup ] && [ -x $R/usr/lib/be
 t wifi-connect    "[ -x $R/usr/local/sbin/bendcnc-wifi-connect ] && grep -qx 'cnc ALL=(root) NOPASSWD: /usr/local/sbin/bendcnc-wifi-connect' $R/etc/sudoers.d/bendcnc-install && ! grep -q \$(printf '\r') $R/usr/local/sbin/bendcnc-wifi-connect"
 t dns-resolved    "[ \"\$(readlink $R/etc/resolv.conf)\" = ../run/systemd/resolve/stub-resolv.conf ] && [ -L $R/etc/systemd/system/multi-user.target.wants/systemd-resolved.service -o -L $R/etc/systemd/system/sysinit.target.wants/systemd-resolved.service ]"
 t setup-sudoers   "[ \$(stat -c %a $R/etc/sudoers.d/bendcnc-install) = 440 ]"
+t deploy-kiosk    "[ -x $R/usr/local/sbin/bendcnc-deploy-kiosk ] && [ -x $R/usr/local/sbin/bendcnc-app-update ] && grep -qx 'cnc ALL=(root) NOPASSWD: /usr/local/sbin/bendcnc-deploy-kiosk /tmp/bendcnc-qt-arm64.tar' $R/etc/sudoers.d/bendcnc-deploy && [ \$(stat -c %a $R/etc/sudoers.d/bendcnc-deploy) = 440 ] && ! grep -q \$(printf '\r') $R/usr/local/sbin/bendcnc-deploy-kiosk"
 t firmware-v1.1   "echo 'c9c3564be37c300f864b8aab22a6ad2b7a9e9a20a95474504dadb6aaad0b8426  $D/bendcnc-firmware/approved-original-v1.1.bin' | sha256sum -c --quiet"
 t bendcnc-fw      "echo '23298ce3d7ebcb986496b3e4cfc972769f51fb81787bd2b4e12966e9b901720c  $D/bendcnc-qt-state/firmware/bendcnc-v1.3.bin' | sha256sum -c --quiet && grep -q 'BENDCNC v1.3' $D/bendcnc-qt-state/firmware/firmware-catalog.json"
 t fw-no-ls        "! grep -a -q -i 'LS-BEND' $D/bendcnc-qt-state/firmware/bendcnc-v1.3.bin"

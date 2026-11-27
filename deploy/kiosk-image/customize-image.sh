@@ -274,6 +274,11 @@ chown 1000:1000 "$FWCAT/firmware-catalog.json"
     printf '%s\n' 'cnc ALL=(root) NOPASSWD: /usr/local/sbin/bendcnc-app-update queue, /usr/local/sbin/bendcnc-app-update status' \
         > "$ROOT_MNT/etc/sudoers.d/bendcnc-app-update"
     chmod 0440 "$ROOT_MNT/etc/sudoers.d/bendcnc-app-update"
+    # Transactional deploy used by bendcnc-app-update (same as install-passwordless-deploy.sh).
+    install -o 0 -g 0 -m 0755 "$FLASHER/bendcnc-deploy-kiosk" "$ROOT_MNT/usr/local/sbin/bendcnc-deploy-kiosk"
+    printf '%s\n' 'cnc ALL=(root) NOPASSWD: /usr/local/sbin/bendcnc-deploy-kiosk /tmp/bendcnc-qt-arm64.tar' \
+        > "$ROOT_MNT/etc/sudoers.d/bendcnc-deploy"
+    chmod 0440 "$ROOT_MNT/etc/sudoers.d/bendcnc-deploy"
     CNC_UID=$(awk -F: '$1=="cnc"{print $3}' "$ROOT_MNT/etc/passwd")
     CNC_GID=$(awk -F: '$1=="cnc"{print $4}' "$ROOT_MNT/etc/passwd")
     [[ -n "$CNC_UID" ]] || { echo "cnc user missing in image" >&2; exit 9; }

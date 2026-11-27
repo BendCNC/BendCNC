@@ -28,6 +28,7 @@ cp "$HERE/dfu-util_0.9-1_arm64.deb" "$STAGE/flasher/"
 for h in bendcnc-flash-firmware bendcnc-app-update bendcnc-import-shell bendcnc-import-keys; do
     tr -d '\r' < "$DEPLOY/arm64/$h" > "$STAGE/flasher/$h"
 done
+tr -d '\r' < "$DEPLOY/arm64/deploy-kiosk-bundle.sh" > "$STAGE/flasher/bendcnc-deploy-kiosk"
 
 docker run --rm --privileged -v /dev:/dev \
     --mount type=bind,source="$BASE",target=/input/bendcnc-base.img,readonly \

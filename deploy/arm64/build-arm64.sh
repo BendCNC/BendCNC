@@ -90,4 +90,6 @@ tar -tf "$OUT/bendcnc-qt-arm64.tar" > "$CTX/list.txt"
 grep -qx prototype "$CTX/list.txt" && grep -q 'assets/Dies/.*\.bct$' "$CTX/list.txt"
 grep -qx 'sequence-planner/tools/plan_sequence.mjs' "$CTX/list.txt" && grep -qx 'sequence-planner/runtime/node/bin/node' "$CTX/list.txt"
 grep -q '^sequence-planner/runtime/python/shapely/' "$CTX/list.txt"
+# bendcnc-deploy-kiosk rejects anything that is not a regular file or directory.
+! tar -tvf "$OUT/bendcnc-qt-arm64.tar" | grep -qv '^[-d]' || { echo "bundle contains links/special files" >&2; exit 1; }
 sha256sum "$OUT/bendcnc-qt-arm64.tar" | tee "$OUT/bendcnc-qt-arm64.tar.sha256"
