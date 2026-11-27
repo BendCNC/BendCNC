@@ -1901,10 +1901,28 @@ Item {
                 }
             }
 
-            Item {
-                id: cardContentContainer
+            // Scrolls when the options do not fit (small kiosk screens).
+            Flickable {
+                id: cardContentFlick
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                clip: true
+                contentWidth: width
+                contentHeight: cardContentContainer.height
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: cardContentFlick.contentHeight > cardContentFlick.height + 1 ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
+
+                Item {
+                    id: cardContentContainer
+                    width: cardContentFlick.width
+                    // Children fill this item with 12 px margins; grow to their natural height.
+                    height: {
+                        var h = 0
+                        for (var i = 0; i < children.length; ++i)
+                            h = Math.max(h, children[i].implicitHeight + 24)
+                        return Math.max(cardContentFlick.height, h)
+                    }
+                }
             }
         }
     }
