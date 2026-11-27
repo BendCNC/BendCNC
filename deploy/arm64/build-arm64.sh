@@ -46,7 +46,7 @@ cat > "$CTX/assets/firmware-catalog/firmware-catalog.json" <<EOF
 "label":"bendcnc-v1.3","file":"bendcnc-v1.3.bin","sha256":"$BFW_SHA",
 "size":$(stat -c %s "$BFW"),"autoRollback":true}]}
 EOF
-find "$CTX" -type f \( -name '*.sh' -o -name 'Dockerfile*' -o -name 'bendcnc-*' \) -exec sed -i 's/\r$//' {} +
+find "$CTX" -type f \( -name '*.sh' -o -name 'Dockerfile*' -o -name 'bendcnc-*' \) ! -name '*.bin' -exec sed -i 's/\r$//' {} +
 
 if ! docker image inspect "$QT_IMAGE" >/dev/null 2>&1; then
     echo "Building ARM64 Qt runtime image $QT_IMAGE (one time)..."
