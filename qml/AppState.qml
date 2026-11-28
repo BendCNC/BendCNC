@@ -397,6 +397,10 @@ QtObject {
 
         function onRamLevelOffsetReported(inches) {
             appState.ramLevelOffset = Number(inches)
+            if (appState.ramLevelSavePending) {
+                appState.ramLevelSavePending = false
+                appState.applyRamLevel()
+            }
         }
 
         function onConnectionFailed(device, reason) {
@@ -2664,11 +2668,19 @@ QtObject {
     // Takes effect at the next HOME.
     property real ramLevelOffset: NaN      // firmware-reported, inches
     property real calibrationLevelSkew: NaN
+    property bool ramLevelSavePending: false
     readonly property bool ramLevelAvailable: !offlineSimulationEnabled && !manualMeasurementProcessActive
-        && isFinite(ramLevelOffset) && isFinite(calibrationLevelSkew)
+        && isFinite(calibrationLevelSkew)
     function applyRamLevel() {
         if (!ramLevelAvailable || !machineControl)
             return false
+        if (!isFinite(ramLevelOffset)) {
+            // Current offset unknown: ask the press, save on its {LV:} reply.
+            ramLevelSavePending = machineControl.queryRamLevelOffset()
+            if (!ramLevelSavePending)
+                showAlarm("LEVEL REJECTED", "The press is not connected.")
+            return ramLevelSavePending
+        }
         var next = ramLevelOffset + calibrationLevelSkew
         if (Math.abs(next) > 0.100) {
             showAlarm("LEVEL OUT OF RANGE", "Offset " + next.toFixed(4) + " in exceeds 0.100 in. Check the punch seat and homing.")
