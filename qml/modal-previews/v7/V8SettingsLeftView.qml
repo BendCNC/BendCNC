@@ -442,6 +442,46 @@ Item {
                             }
                         }
 
+                        RowLayout {
+                            objectName: "settings-ram-level"
+                            Layout.fillWidth: true
+                            Column {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: qsTr("Ram Level Offset (Y2)")
+                                    font.bold: true
+                                    font.pixelSize: 13
+                                    color: root.textPrimary
+                                }
+                                Text {
+                                    text: (root.appState && isFinite(root.appState.ramLevelOffset)
+                                        ? Units.len(root.appState.ramLevelOffset, root.metric, 4)
+                                        : qsTr("unknown")) + " — " + qsTr("saved from Calibrate; applied at HOME")
+                                    font.pixelSize: 11
+                                    color: root.textMuted
+                                }
+                            }
+                            Button {
+                                objectName: "settings-ram-level-reset"
+                                Layout.preferredWidth: 90
+                                Layout.preferredHeight: 34
+                                padding: 0
+                                enabled: root.controllerSettingsAllowed
+                                onClicked: if (root.appState) root.appState.resetRamLevel()
+                                background: Rectangle { radius: 5; color: root.amber }
+                                contentItem: Item {
+                                    anchors.fill: parent
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: qsTr("RESET")
+                                        font.bold: true
+                                        font.pixelSize: 11
+                                        color: "#FFFFFF"
+                                    }
+                                }
+                            }
+                        }
+
                         SettingSwitchRow {
                             title: qsTr("Frame Deflection Compensation")
                             desc: qsTr("Dynamic deflection angle correction based on live tonnage and bed span")

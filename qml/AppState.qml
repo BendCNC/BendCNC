@@ -2696,6 +2696,16 @@ QtObject {
         showPopup("LEVEL", "Level offset saved: " + next.toFixed(4) + " in. Run HOME to apply it.")
         return true
     }
+    function resetRamLevel() {
+        if (!machineControl || !machineControl.setRamLevelOffset(0.0)) {
+            showAlarm("LEVEL REJECTED", "The press must be connected and idle.")
+            return false
+        }
+        log("SETTINGS", "Ram level offset reset to 0; HOME to apply")
+        calibrationLevelSkew = NaN
+        showPopup("LEVEL", "Level offset reset to 0.0000 in. Run HOME to apply it.")
+        return true
+    }
     function stopStandaloneSeat() {
         if (!standaloneSeatActive)
             return
