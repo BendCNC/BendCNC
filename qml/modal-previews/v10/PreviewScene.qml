@@ -2848,7 +2848,7 @@ Item {
 
             Text {
 
-                text: qsTr("v10-gemini-precision")
+                text: qsTr("v10")
 
                 color: "#59A60C"
 

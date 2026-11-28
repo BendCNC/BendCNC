@@ -12,7 +12,7 @@ header strip (`LayoutMetrics.tabOrder`). Design notes and data format:
 | Item | Description |
 |------|-------------|
 | `qml/ProgramsView.qml` | `FocusScope` wrapper. Properties `appState`; signal `openInRunRequested()`. |
-| `qml/modal-previews/v7-gemini-precision/V7ProgramsLeftView.qml` | The panel (`objectName: "programs-left-panel-v7"`, 864 x 638, v7 tokens shared with the Tools tab). |
+| `qml/modal-previews/v7/V7ProgramsLeftView.qml` | The panel (`objectName: "programs-left-panel-v7"`, 864 x 638, v7 tokens shared with the Tools tab). |
 | `qml/AppState.qml` | Owns the data and every mutation. The view never edits `programs` directly. |
 
 `main.qml` connects `openInRunRequested` to `requestTabChange(0)`.

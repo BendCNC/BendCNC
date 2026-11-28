@@ -292,6 +292,9 @@ public:
     Q_INVOKABLE bool setManualModeMaxTonnage(double maxTonnagePerRam);
     Q_INVOKABLE bool setPrimingEnabled(bool enabled);
     Q_INVOKABLE bool setPrimingLatch(const QString &axis, bool enabled);
+    // Ram leveling offset (inches added to Y2, firmware $L). Applies at next HOME.
+    Q_INVOKABLE bool setRamLevelOffset(double inches);
+    Q_INVOKABLE bool queryRamLevelOffset();
     Q_INVOKABLE bool startTonnageHold(double targetTonnage, double bendSpeed, double jogSpeed);
     // Tool change modes of the tonnage hold profile (firmware TCH capability).
     Q_INVOKABLE bool startToolChangeTouch(double backoff, double floor);
@@ -352,6 +355,7 @@ signals:
     void commandLifecycleChanged();
     void telemetryLogLine(const QString &device, const QString &line);
     void pressSerialLogLine(const QString &source, const QString &content);
+    void ramLevelOffsetReported(double inches);
     void thcTuningQueryFinished(bool ok, const QString &response, const QString &error);
     // event: CONTACT, BACKOFF, BACKOFF_DONE, MOVE_DONE, SEAT_ARMED,
     // SEAT_PAUSED, SEAT_RESUMED, SEAT_DONE. position NaN when not carried.

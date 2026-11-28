@@ -129,7 +129,7 @@ Item {
             }
 
             Text {
-                text: qsTr("Version v3-gemini-compact")
+                text: qsTr("Version v3")
                 color: "#59A60C"
                 font.pixelSize: 11
                 font.bold: true

@@ -1874,6 +1874,25 @@ bool MachineControlBackend::setPrimingEnabled(bool enabled)
     return true;
 }
 
+bool MachineControlBackend::setRamLevelOffset(double inches)
+{
+    const QString operation = QStringLiteral("ram-level-offset");
+    if (!std::isfinite(inches) || std::abs(inches) > 0.100)
+        return reject(QStringLiteral("press"), operation, CommandRejectionReason::InvalidArgument);
+    if (!m_pressConnected || !m_pressReady || m_pressOperationActive)
+        return reject(QStringLiteral("press"), operation, CommandRejectionReason::NotReady);
+    // Firmware stores it only when idle and answers {LV:<current>} either way.
+    return m_pressTransport->writeFrame(
+        QStringLiteral("<$L=%1>\n").arg(inches, 0, 'f', 4).toLatin1());
+}
+
+bool MachineControlBackend::queryRamLevelOffset()
+{
+    if (!m_pressConnected)
+        return false;
+    return m_pressTransport->writeFrame(QByteArrayLiteral("<$L?>\n"));
+}
+
 bool MachineControlBackend::setPrimingLatch(const QString &axis, bool enabled)
 {
     const QString normalized = axis.trimmed().toUpper();
@@ -4048,6 +4067,12 @@ void MachineControlBackend::handlePressFrame(const QByteArray &frame)
         m_thcTuningQueryPending = false;
         m_thcTuningQueryTimer.stop();
         emit thcTuningQueryFinished(true, line, QString());
+        return;
+    }
+    if (line.startsWith(QStringLiteral("{LV:")) && line.endsWith(QLatin1Char('}'))) {
+        bool ok = false;
+        const double value = line.mid(4, line.size() - 5).toDouble(&ok);
+        if (ok) emit ramLevelOffsetReported(value);
         return;
     }
     if (handleToolChangeFrame(line))

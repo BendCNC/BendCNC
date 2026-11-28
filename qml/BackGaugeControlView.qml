@@ -1,8 +1,8 @@
 import QtQuick
-import "modal-previews/v7-gemini-precision" as V6
+import "modal-previews/v7" as V6
 
 // Production BACK GAUGE tab: renders the promoted V5 precision panel and keeps
-// (now maintained in v6-gemini-precision) and keeps the production safety lifecycle (jog release on focus loss/destruction and
+// (now maintained in v6) and keeps the production safety lifecycle (jog release on focus loss/destruction and
 // offline continuous-jog stepping).
 FocusScope {
     id: root

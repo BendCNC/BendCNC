@@ -158,7 +158,7 @@ Item {
             }
 
             Text {
-                text: qsTr("v2-gemini-calibration")
+                text: qsTr("v2")
                 color: "#38BDF8"
                 font.pixelSize: 11
                 font.bold: true

@@ -1,5 +1,5 @@
 import QtQuick
-import "modal-previews/v7-gemini-precision" as V7
+import "modal-previews/v7" as V7
 
 // Production TOOLS tab: renders the v7 designer panel; edits persist through dataStore.
 FocusScope {

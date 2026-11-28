@@ -795,7 +795,7 @@ Item {
             }
 
             Text {
-                text: qsTr("v5-gemini-precision")
+                text: qsTr("v5")
                 color: "#59A60C"
                 font.pixelSize: 11
                 font.bold: true

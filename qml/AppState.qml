@@ -395,6 +395,10 @@ QtObject {
         target: appState.machineControl
         ignoreUnknownSignals: true
 
+        function onRamLevelOffsetReported(inches) {
+            appState.ramLevelOffset = Number(inches)
+        }
+
         function onConnectionFailed(device, reason) {
             if (String(device || "") === appState.lastHomeFailureDevice
                     && String(reason || "UNKNOWN") === appState.lastHomeFailureReason) {
@@ -944,9 +948,12 @@ QtObject {
     onToolChangeStateChanged: {
         if (toolChangeState !== "TOUCH" && toolChangeState !== "BACKOFF")
             toolChangeTouchHeartbeat.stop()
+        captureSeatLevelSkew()
         handleRunToolChangeStateChanged()
         handleStandaloneSeatStateChanged()
     }
+    onRamPositionY1Changed: captureSeatLevelSkew()
+    onRamPositionY2Changed: captureSeatLevelSkew()
     onLeftSafetyJogChanged: handleRunToolChangeJogInput()
     onRightSafetyJogChanged: handleRunToolChangeJogInput()
     onBendJogPedalChanged: {
@@ -2633,6 +2640,9 @@ QtObject {
         }
         toolChangeFailure = ""
         toolChangeSeatAgainAvailable = false
+        seatLevelSkew = NaN
+        if (!offlineSimulationEnabled && machineControl)
+            machineControl.queryRamLevelOffset()
         standaloneSeatActive = true
         toolChangeState = "AWAIT_SEAT"
         if (offlineSimulationEnabled)
@@ -2644,6 +2654,34 @@ QtObject {
             return false
         }
         log("MANUAL", "Standalone seat armed" + (toolChangeEqualForceSeat ? " (equal tonnage)" : "") + "; hold the pedal")
+        return true
+    }
+    // Ram leveling (firmware $L): Y1-Y2 measured while the standalone seat
+    // holds is added to the stored Y2 offset. Takes effect at the next HOME.
+    property real ramLevelOffset: NaN      // firmware-reported, inches
+    property real seatLevelSkew: NaN       // last Y1-Y2 during SEAT_HOLD
+    readonly property bool ramLevelAvailable: !offlineSimulationEnabled && !standaloneSeatActive
+        && isFinite(ramLevelOffset) && isFinite(seatLevelSkew)
+    function captureSeatLevelSkew() {
+        if (standaloneSeatActive && toolChangeState === "SEAT_HOLD" && independentRamTelemetryAvailable)
+            seatLevelSkew = ramPositionY1 - ramPositionY2
+    }
+    function applyRamLevel() {
+        if (!ramLevelAvailable || !machineControl)
+            return false
+        var next = ramLevelOffset + seatLevelSkew
+        if (Math.abs(next) > 0.100) {
+            showAlarm("LEVEL OUT OF RANGE", "Offset " + next.toFixed(4) + " in exceeds 0.100 in. Check the punch seat and homing.")
+            return false
+        }
+        if (!machineControl.setRamLevelOffset(next)) {
+            showAlarm("LEVEL REJECTED", "The press must be connected and idle.")
+            return false
+        }
+        log("MANUAL", "Ram level offset Y2 " + ramLevelOffset.toFixed(4) + " -> " + next.toFixed(4)
+            + " in (seated skew " + seatLevelSkew.toFixed(4) + "); HOME to apply")
+        seatLevelSkew = NaN
+        showPopup("LEVEL", "Level offset saved: " + next.toFixed(4) + " in. Run HOME to apply it.")
         return true
     }
     function stopStandaloneSeat() {

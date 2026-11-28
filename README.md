@@ -32,7 +32,10 @@ serial port and imports parts exported by the
   shows Y1/Y2 skew and the ram tilt angle (atan(skew / 33 in cylinder spacing)) with the low side.
   **SEAT** (Constant tonnage hold row) seats the punches outside a program: same pedal-owned
   firmware seat as the RUN tool change, sent as `TH:SEATEQ` when Settings → Tool Change: Equal
-  Tonnage Seat (Experimental) is on. Requires Manual enabled with the press homed and idle.
+  Tonnage Seat (Experimental) is on (Settings → DISPLAY). Requires Manual enabled with the press
+  homed and idle. **LEVEL** (next to SEAT) levels the ram: after a seat, it saves the Y1−Y2
+  difference measured during the hold as a Y2 offset in controller EEPROM (firmware `$L=`, max
+  ±0.100 in). The offset takes effect at the next HOME.
 - **CAD import** — open `.bend` files from the Fusion add-in; automatic bend sequence,
   orientation and gauging. Search, new folder and rename open the on-screen keyboard.
 - **On-screen keyboard** — shown in an overlay layer, above modal dialogs.

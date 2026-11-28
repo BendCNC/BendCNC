@@ -778,6 +778,17 @@ Item {
                             else root.appState.startStandaloneSeat()
                         }
                     }
+                    // Ram leveling: saves the Y1-Y2 skew measured during the seat hold.
+                    ActionButton {
+                        objectName: "button-ram-level"
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.preferredHeight: root.fieldHeight
+                        label: qsTr("LEVEL")
+                        baseColor: orange
+                        controlEnabled: root.appState && root.appState.ramLevelAvailable
+                        onClicked: if (root.appState) root.appState.applyRamLevel()
+                    }
             }
         }
     }

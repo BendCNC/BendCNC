@@ -63,7 +63,7 @@ Item {
     property real targetX: simX
     property real targetR: simR
 
-    // Design Tokens (V5 Gemini Precision Palette)
+    // Design Tokens (V5 Palette)
     readonly property color bgDark: "#0B0F17"
     readonly property color cardBg: "#131A26"
     readonly property color cardBorder: "#222D3E"
