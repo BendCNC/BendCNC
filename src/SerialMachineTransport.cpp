@@ -358,6 +358,8 @@ bool SerialMachineTransport::isWriteFrameAllowed(SerialDeviceDiscovery::DeviceRo
         QStringLiteral("^<\\$R=-?\\d+(?:\\.\\d{4})>\\n$"));
     static const QRegularExpression pressManualTonnagePattern(
         QStringLiteral("^<\\$MT=\\d+(?:\\.\\d{4})>\\n$"));
+    static const QRegularExpression pressRamLevelPattern(
+        QStringLiteral("^<\\$L(?:\\?|=-?0\\.\\d{4})>\\n$"));
     static const QRegularExpression pressRunPedalModePattern(
         QStringLiteral("^<\\$PM=[0-4]>\\n$"));
     static const QRegularExpression pressTonnageHoldPattern(
@@ -396,6 +398,7 @@ bool SerialMachineTransport::isWriteFrameAllowed(SerialDeviceDiscovery::DeviceRo
             || isValidatedRamToTableFrame(text)
             || pressManualTonnagePattern.match(text).hasMatch()
             || pressRunPedalModePattern.match(text).hasMatch()
+            || pressRamLevelPattern.match(text).hasMatch()
             // The retained two-field form is a legacy compatibility command.
             // Native v1.3 frames must pass the exact, finite, bounded grammar.
             || pressTonnageHoldPattern.match(text).hasMatch()
