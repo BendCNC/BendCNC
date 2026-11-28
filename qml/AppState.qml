@@ -399,7 +399,7 @@ QtObject {
             appState.ramLevelOffset = Number(inches)
             if (appState.ramLevelSavePending) {
                 appState.ramLevelSavePending = false
-                appState.applyRamLevel()
+                appState.applyRamLevel(true)
             }
         }
 
@@ -2678,15 +2678,21 @@ QtObject {
     property bool ramLevelSavePending: false
     readonly property bool ramLevelAvailable: !offlineSimulationEnabled && !manualMeasurementProcessActive
         && isFinite(calibrationLevelSkew)
-    function applyRamLevel() {
+    function applyRamLevel(fromReply) {
         if (!ramLevelAvailable || !machineControl)
             return false
-        if (!isFinite(ramLevelOffset)) {
-            // Current offset unknown: ask the press, save on its {LV:} reply.
+        if (fromReply !== true) {
+            // Always read the press's stored offset first: the skew measured
+            // after HOME is a residual on top of it (a stale 0 here replaced
+            // 0.0094 with 0.0029 on 2026-11-28). Save on its {LV:} reply.
             ramLevelSavePending = machineControl.queryRamLevelOffset()
             if (!ramLevelSavePending)
                 showAlarm("LEVEL REJECTED", "The press is not connected.")
             return ramLevelSavePending
+        }
+        if (!isFinite(ramLevelOffset)) {
+            showAlarm("LEVEL REJECTED", "The press did not report its current level offset.")
+            return false
         }
         var next = ramLevelOffset + calibrationLevelSkew
         if (Math.abs(next) > 0.100) {
@@ -2699,6 +2705,7 @@ QtObject {
         }
         log("MANUAL", "Ram level offset Y2 " + ramLevelOffset.toFixed(4) + " -> " + next.toFixed(4)
             + " in (calibrated skew " + calibrationLevelSkew.toFixed(4) + "); HOME to apply")
+        ramLevelOffset = next
         calibrationLevelSkew = NaN
         showPopup("LEVEL", "Level offset saved: " + next.toFixed(4) + " in. Run HOME to apply it.")
         return true
