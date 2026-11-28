@@ -397,6 +397,7 @@ QtObject {
 
         function onRamLevelOffsetReported(inches) {
             appState.ramLevelOffset = Number(inches)
+            appState.log("MANUAL", "Press reports ram level offset Y2 " + Number(inches).toFixed(4) + " in")
             if (appState.ramLevelSavePending) {
                 appState.ramLevelSavePending = false
                 appState.applyRamLevel(true)
