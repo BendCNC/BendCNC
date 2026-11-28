@@ -945,6 +945,7 @@ QtObject {
         if (toolChangeState !== "TOUCH" && toolChangeState !== "BACKOFF")
             toolChangeTouchHeartbeat.stop()
         handleRunToolChangeStateChanged()
+        handleStandaloneSeatStateChanged()
     }
     onLeftSafetyJogChanged: handleRunToolChangeJogInput()
     onRightSafetyJogChanged: handleRunToolChangeJogInput()
@@ -2618,6 +2619,55 @@ QtObject {
         return true
     }
 
+    // Standalone SEAT (Manual view, outside RUN): arms the same pedal-owned
+    // firmware seat (EQ when enabled) without TOUCH/BACKOFF/MOVE.
+    property bool standaloneSeatActive: false
+    readonly property bool standaloneSeatAvailable: !runActive && toolChangeSupported
+        && (offlineSimulationEnabled || pressCanOperate)
+    function startStandaloneSeat() {
+        if (standaloneSeatActive || runActive || runToolChangeActive)
+            return false
+        if (!offlineSimulationEnabled && (!toolChangeSupported || !pressCanOperate)) {
+            showAlarm("SEAT NOT AVAILABLE", "Enable Manual with the press homed and idle; the firmware must report tool change.")
+            return false
+        }
+        toolChangeFailure = ""
+        toolChangeSeatAgainAvailable = false
+        standaloneSeatActive = true
+        toolChangeState = "AWAIT_SEAT"
+        if (offlineSimulationEnabled)
+            return true
+        if (!startToolChangeSeat()) {
+            standaloneSeatActive = false
+            toolChangeState = "IDLE"
+            showAlarm("SEAT REJECTED", "The press did not accept the seat command.")
+            return false
+        }
+        log("MANUAL", "Standalone seat armed" + (toolChangeEqualForceSeat ? " (equal tonnage)" : "") + "; hold the pedal")
+        return true
+    }
+    function stopStandaloneSeat() {
+        if (!standaloneSeatActive)
+            return
+        toolChangeOfflineTimer.stop()
+        if (!offlineSimulationEnabled && machineControl
+                && (toolChangeState === "SEAT" || toolChangeState === "SEAT_PAUSED"
+                    || toolChangeState === "SEAT_HOLD"))
+            machineControl.stopTonnageHold()
+        standaloneSeatActive = false
+        endToolChange()
+    }
+    function handleStandaloneSeatStateChanged() {
+        if (!standaloneSeatActive)
+            return
+        if (toolChangeState === "DONE" || toolChangeState === "FAILED") {
+            log("MANUAL", "Standalone seat " + (toolChangeState === "DONE" ? "complete" : "failed: " + toolChangeFailure))
+            standaloneSeatActive = false
+            toolChangeSeatAgainAvailable = false
+            toolChangeState = "IDLE"
+        }
+    }
+
     // Next sequence start retires SEAT AGAIN.
     function endToolChange() {
         toolChangeTouchHeartbeat.stop()
@@ -2916,7 +2966,7 @@ QtObject {
 
     // Offline: the pedal drives SEAT; release after HOLD completes.
     function handleRunToolChangePedal() {
-        if (!runToolChangeActive)
+        if (!runToolChangeActive && !standaloneSeatActive)
             return
         // Pedal hold drives TOUCH (advance to contact, firmware backoff);
         // SEAT is pedal-owned in firmware once armed.

@@ -30,6 +30,9 @@ serial port and imports parts exported by the
 - **Back gauge** — back-gauge jog and positioning.
 - **Manual** — manual ram/back-gauge jog, measurement and calibration. The measurement modal
   shows Y1/Y2 skew and the ram tilt angle (atan(skew / 33 in cylinder spacing)) with the low side.
+  **SEAT** (Constant tonnage hold row) seats the punches outside a program: same pedal-owned
+  firmware seat as the RUN tool change, sent as `TH:SEATEQ` when Settings → Tool Change: Equal
+  Tonnage Seat (Experimental) is on. Requires Manual enabled with the press homed and idle.
 - **CAD import** — open `.bend` files from the Fusion add-in; automatic bend sequence,
   orientation and gauging. Search, new folder and rename open the on-screen keyboard.
 - **On-screen keyboard** — shown in an overlay layer, above modal dialogs.
