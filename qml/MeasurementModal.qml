@@ -163,6 +163,8 @@ Rectangle {
     property real openingCandidate: Number.NaN
     property string openingState: ""
     property bool openingCanApply: false
+    property real levelSkew: Number.NaN
+    property bool levelCanApply: false
     // Opening the running die top would give, while still averaging.
     property real liveOpeningCurrent: Number.NaN
     property real liveOpening: Number.NaN
@@ -242,6 +244,7 @@ Rectangle {
     signal toolingRequested()
     signal referencePieceToggled()
     signal applyOpeningRequested()
+    signal saveLevelRequested()
     signal useForProgramRequested()
     signal thicknessOverrideToggled()
     signal measurementTonnageRequested()
@@ -1701,6 +1704,20 @@ Rectangle {
                         else
                             root.useForProgramRequested()
                     }
+                }
+
+                // CALIBRATE: save the averaged Y1-Y2 skew as the ram level offset.
+                HarmonizedButton {
+                    objectName: "manual-calibration-save-level"
+                    visible: root.operationalMode === "CALIBRATE"
+                    Layout.preferredWidth: root.actionButtonWidth
+                    text: isFinite(root.levelSkew)
+                        ? qsTr("SAVE LEVEL") + " " + root.levelSkew.toFixed(4)
+                        : qsTr("SAVE LEVEL")
+                    controlEnabled: root.levelCanApply && !root.processActive
+                    baseColor: root.colAmber
+                    textColor: "white"
+                    onClicked: root.saveLevelRequested()
                 }
 
                 // MEASURE: run programs with the released thickness without

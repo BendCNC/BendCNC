@@ -948,12 +948,9 @@ QtObject {
     onToolChangeStateChanged: {
         if (toolChangeState !== "TOUCH" && toolChangeState !== "BACKOFF")
             toolChangeTouchHeartbeat.stop()
-        captureSeatLevelSkew()
         handleRunToolChangeStateChanged()
         handleStandaloneSeatStateChanged()
     }
-    onRamPositionY1Changed: captureSeatLevelSkew()
-    onRamPositionY2Changed: captureSeatLevelSkew()
     onLeftSafetyJogChanged: handleRunToolChangeJogInput()
     onRightSafetyJogChanged: handleRunToolChangeJogInput()
     onBendJogPedalChanged: {
@@ -1049,6 +1046,7 @@ QtObject {
     property var manualMeasurementPositionSamples: []
     property var manualMeasurementLoadY1Samples: []
     property var manualMeasurementLoadY2Samples: []
+    property var manualMeasurementSkewSamples: []   // Y1-Y2 per accepted sample
     property real manualMeasurementPositionMinimum: NaN
     property real manualMeasurementPositionMaximum: NaN
     property real manualMeasurementLoadY1Sum: 0
@@ -1927,6 +1925,9 @@ QtObject {
         manualMeasurementUsedForProgram = false
         resetManualMeasurementAcquisition("")
         clearManualMeasurementAcceptedSnapshot()
+        calibrationLevelSkew = NaN
+        if (normalized === "CALIBRATION" && !offlineSimulationEnabled && machineControl)
+            machineControl.queryRamLevelOffset()
         manualMeasurementStatus = normalized === "CALIBRATION"
             ? "ENTER KNOWN PIECE SIZE" : (manualDieTopCalibrationValid
                 ? "READY FOR PIECE" : "CALIBRATION REQUIRED")
@@ -2393,6 +2394,7 @@ QtObject {
         manualMeasurementPositionSamples = []
         manualMeasurementLoadY1Samples = []
         manualMeasurementLoadY2Samples = []
+        manualMeasurementSkewSamples = []
         manualMeasurementPositionMinimum = NaN
         manualMeasurementPositionMaximum = NaN
         manualMeasurementLoadY1Sum = 0
@@ -2644,9 +2646,6 @@ QtObject {
         }
         toolChangeFailure = ""
         toolChangeSeatAgainAvailable = false
-        seatLevelSkew = NaN
-        if (!offlineSimulationEnabled && machineControl)
-            machineControl.queryRamLevelOffset()
         standaloneSeatActive = true
         toolChangeState = "AWAIT_SEAT"
         if (offlineSimulationEnabled)
@@ -2660,20 +2659,17 @@ QtObject {
         log("MANUAL", "Standalone seat armed" + (toolChangeEqualForceSeat ? " (equal tonnage)" : "") + "; hold the pedal")
         return true
     }
-    // Ram leveling (firmware $L): Y1-Y2 measured while the standalone seat
-    // holds is added to the stored Y2 offset. Takes effect at the next HOME.
+    // Ram leveling (firmware $L): mean Y1-Y2 over the accepted Calibrate
+    // samples (known uniform piece) is added to the stored Y2 offset.
+    // Takes effect at the next HOME.
     property real ramLevelOffset: NaN      // firmware-reported, inches
-    property real seatLevelSkew: NaN       // last Y1-Y2 during SEAT_HOLD
-    readonly property bool ramLevelAvailable: !offlineSimulationEnabled && !standaloneSeatActive
-        && isFinite(ramLevelOffset) && isFinite(seatLevelSkew)
-    function captureSeatLevelSkew() {
-        if (standaloneSeatActive && toolChangeState === "SEAT_HOLD" && independentRamTelemetryAvailable)
-            seatLevelSkew = ramPositionY1 - ramPositionY2
-    }
+    property real calibrationLevelSkew: NaN
+    readonly property bool ramLevelAvailable: !offlineSimulationEnabled && !manualMeasurementProcessActive
+        && isFinite(ramLevelOffset) && isFinite(calibrationLevelSkew)
     function applyRamLevel() {
         if (!ramLevelAvailable || !machineControl)
             return false
-        var next = ramLevelOffset + seatLevelSkew
+        var next = ramLevelOffset + calibrationLevelSkew
         if (Math.abs(next) > 0.100) {
             showAlarm("LEVEL OUT OF RANGE", "Offset " + next.toFixed(4) + " in exceeds 0.100 in. Check the punch seat and homing.")
             return false
@@ -2683,8 +2679,8 @@ QtObject {
             return false
         }
         log("MANUAL", "Ram level offset Y2 " + ramLevelOffset.toFixed(4) + " -> " + next.toFixed(4)
-            + " in (seated skew " + seatLevelSkew.toFixed(4) + "); HOME to apply")
-        seatLevelSkew = NaN
+            + " in (calibrated skew " + calibrationLevelSkew.toFixed(4) + "); HOME to apply")
+        calibrationLevelSkew = NaN
         showPopup("LEVEL", "Level offset saved: " + next.toFixed(4) + " in. Run HOME to apply it.")
         return true
     }
@@ -3161,19 +3157,23 @@ QtObject {
         var positions = manualMeasurementPositionSamples.slice()
         var loadsY1 = manualMeasurementLoadY1Samples.slice()
         var loadsY2 = manualMeasurementLoadY2Samples.slice()
+        var skews = manualMeasurementSkewSamples.slice()
         positions.push(position)
         loadsY1.push(loadY1)
         loadsY2.push(loadY2)
+        skews.push(ramPositionY1 - ramPositionY2)
         while (positions.length > 1
                && Math.max.apply(null, positions) - Math.min.apply(null, positions)
                    > manualMeasurementMaximumPositionRange) {
             positions.shift()
             loadsY1.shift()
             loadsY2.shift()
+            skews.shift()
         }
         manualMeasurementPositionSamples = positions
         manualMeasurementLoadY1Samples = loadsY1
         manualMeasurementLoadY2Samples = loadsY2
+        manualMeasurementSkewSamples = skews
         manualMeasurementQualifiedSamples = positions.length
         manualMeasurementSampleSum = sampleArraySum(positions)
         manualMeasurementLoadY1Sum = sampleArraySum(loadsY1)
@@ -3275,6 +3275,11 @@ QtObject {
             userSettingsModel = Object.assign({}, userSettingsModel)
             manualMeasurementResult = dieTop
             manualMeasurementStatus = "CALIBRATION COMPLETE"
+            // Known uniform piece under equal-ish load: averaged Y1-Y2 is the
+            // ram skew relative to the tooling (operator saves it with SAVE LEVEL).
+            if (independentRamTelemetryAvailable && manualMeasurementSkewSamples.length > 0)
+                calibrationLevelSkew = sampleArraySum(manualMeasurementSkewSamples)
+                    / manualMeasurementSkewSamples.length
             prepareManualCalibrationOpening(opening)
         } else {
             const stack = mean - manualDieTopCalibration

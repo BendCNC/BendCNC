@@ -144,6 +144,8 @@ Item {
         openingCandidate: root.appState ? root.appState.manualCalibrationOpeningCandidate : Number.NaN
         openingState: root.appState ? root.appState.manualCalibrationOpeningState : ""
         openingCanApply: root.appState && root.appState.manualCalibrationOpeningCanApply
+        levelSkew: root.appState ? root.appState.calibrationLevelSkew : Number.NaN
+        levelCanApply: root.appState && root.appState.ramLevelAvailable
         onReferencePiece: root.appState && root.appState.manualMeasurementOnReferencePiece
         referenceThickness: root.appState ? root.appState.manualCalibrationReferenceThickness : Number.NaN
         stackMeasurement: root.appState ? root.appState.manualMeasurementStackResult : Number.NaN
@@ -188,6 +190,7 @@ Item {
         onReferencePieceToggled: if (root.appState)
             root.appState.setManualMeasurementOnReferencePiece(!root.appState.manualMeasurementOnReferencePiece)
         onApplyOpeningRequested: if (root.appState) root.appState.applyManualCalibrationOpening()
+        onSaveLevelRequested: if (root.appState) root.appState.applyRamLevel()
         onUseForProgramRequested: if (root.appState) root.appState.useManualMeasurementForProgram()
         onThicknessOverrideToggled: if (root.appState)
             root.appState.setMeasuredThicknessOverride(!root.appState.measuredThicknessOverrideEnabled)

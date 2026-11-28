@@ -33,9 +33,10 @@ serial port and imports parts exported by the
   **SEAT** (Constant tonnage hold row) seats the punches outside a program: same pedal-owned
   firmware seat as the RUN tool change, sent as `TH:SEATEQ` when Settings → Tool Change: Equal
   Tonnage Seat (Experimental) is on (Settings → DISPLAY). Requires Manual enabled with the press
-  homed and idle. **LEVEL** (next to SEAT) levels the ram: after a seat, it saves the Y1−Y2
-  difference measured during the hold as a Y2 offset in controller EEPROM (firmware `$L=`, max
-  ±0.100 in). The offset takes effect at the next HOME.
+  homed and idle.
+- **Ram level** — in Calibrate (known uniform piece spanning the full tooling length), after
+  the calibration completes **SAVE LEVEL** adds the averaged Y1−Y2 of the accepted samples to the
+  Y2 offset in controller EEPROM (firmware `$L=`, max ±0.100 in). Takes effect at the next HOME.
 - **CAD import** — open `.bend` files from the Fusion add-in; automatic bend sequence,
   orientation and gauging. Search, new folder and rename open the on-screen keyboard.
 - **On-screen keyboard** — shown in an overlay layer, above modal dialogs.
