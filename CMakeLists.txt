@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 # Customer-visible app version (dashboard, About). Bump for every published release.
-project(BendCNCQMLPrototype VERSION 1.0.34 LANGUAGES CXX)
+project(BendCNCQMLPrototype VERSION 1.0.35 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
