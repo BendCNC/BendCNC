@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
-const previewPath = 'qml/modal-previews/v5-gemini-precision/ThcLiveTuningPreview.qml';
+const previewPath = 'qml/modal-previews/v5/ThcLiveTuningPreview.qml';
 
 test('designer candidate has no production imports, backend, transport or storage', () => {
     const source = read(previewPath).replace(/\/\/[^\n]*/g, '');
@@ -18,7 +18,7 @@ test('designer candidate has no production imports, backend, transport or storag
 });
 
 test('v5 rail loads the candidate only while selected, and registers its resource', () => {
-    const scene = read('qml/modal-previews/v5-gemini-precision/PreviewScene.qml');
+    const scene = read('qml/modal-previews/v5/PreviewScene.qml');
     assert.match(scene, /key: "THC_LIVE_TUNING"/);
     assert.match(scene, /active: root\.visible && root\.selectedPreview === "THC_LIVE_TUNING"/);
     assert.match(scene, /ThcLiveTuningPreview\s*\{/);
@@ -42,7 +42,7 @@ test('redesigned candidate stays a centered 950x600 mock with local animation on
     assert.match(candidate, /SequentialAnimation\s*\{\s*running: root\.visible/);
     assert.match(candidate, /ScriptAction\s*\{\s*script: root\.stepDynamics\(\)/);
     assert.match(candidate, /readonly property bool previewOnly: true/);
-    const scene = read('qml/modal-previews/v5-gemini-precision/PreviewScene.qml');
+    const scene = read('qml/modal-previews/v5/PreviewScene.qml');
     assert.match(scene, /id: tuningStage/);
     assert.match(scene, /color: "#A6000000"/);
     assert.match(scene, /scale: Math\.min\(1, tuningStage\.width \/ width, tuningStage\.height \/ height\)/);

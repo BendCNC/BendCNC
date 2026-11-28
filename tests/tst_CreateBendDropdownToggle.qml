@@ -1,7 +1,7 @@
 import QtQuick
 import QtTest
 import "../qml" as BendCNC
-import "../qml/modal-previews/v7-gemini-precision" as V7
+import "../qml/modal-previews/v7" as V7
 
 // Production CREATE BEND (V7) dropdowns must close when their field is
 // tapped again; CloseOnPressOutside used to close and the click reopened.

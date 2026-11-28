@@ -96,7 +96,7 @@ try {
     if ($VerifyOnly) { return }
     $arguments = @('--offline-validation')
     if ($ModalDesigner) {
-        $arguments += @('--modal-preview', '--modal-preview-version=v5-gemini-precision',
+        $arguments += @('--modal-preview', '--modal-preview-version=v5',
             '--modal-preview-selection=THC_LIVE_TUNING')
         if ($ModalCapturePath) {
             $arguments += '--modal-preview-capture=' + [IO.Path]::GetFullPath($ModalCapturePath)

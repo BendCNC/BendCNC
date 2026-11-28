@@ -1,7 +1,7 @@
 import QtQuick
 import QtTest
 import "../qml" as Production
-import "../qml/modal-previews/v5-gemini-precision" as Preview
+import "../qml/modal-previews/v5" as Preview
 
 Item {
     id: testSurface

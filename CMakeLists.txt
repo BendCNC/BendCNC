@@ -219,32 +219,32 @@ qt_add_qml_module(prototype
         qml/ModalDesignerCanvasSource.qml
         qml/ActivatorProposalsView.qml
         qml/BendModeProposalsView.qml
-        qml/modal-previews/v5-gemini-precision/ColumnRightView.qml
-        qml/modal-previews/v5-gemini-precision/RamDroView.qml
-        qml/modal-previews/v5-gemini-precision/RunLeftView.qml
-        qml/modal-previews/v5-gemini-precision/ManualLeftView.qml
-        qml/modal-previews/v5-gemini-precision/ThcLiveTuningPreview.qml
-        qml/modal-previews/v6-gemini-precision/ColumnRightView.qml
-        qml/modal-previews/v6-gemini-precision/RamDroView.qml
-        qml/modal-previews/v6-gemini-precision/RunLeftView.qml
-        qml/modal-previews/v6-gemini-precision/ManualLeftView.qml
-        qml/modal-previews/v6-gemini-precision/V6BackGaugeLeftView.qml
-        qml/modal-previews/v6-gemini-precision/V6ToolsLeftView.qml
-        qml/modal-previews/v6-gemini-precision/CreateBendLeftView.qml
-        qml/modal-previews/v6-gemini-precision/V6CreateBendLeftView.qml
-        qml/modal-previews/v6-gemini-precision/ThcLiveTuningPreview.qml
-        qml/modal-previews/v7-gemini-precision/ColumnRightView.qml
-        qml/modal-previews/v7-gemini-precision/RamDroView.qml
-        qml/modal-previews/v7-gemini-precision/RunLeftView.qml
-        qml/modal-previews/v7-gemini-precision/ManualLeftView.qml
-        qml/modal-previews/v7-gemini-precision/V6BackGaugeLeftView.qml
-        qml/modal-previews/v7-gemini-precision/V6ToolsLeftView.qml
-        qml/modal-previews/v7-gemini-precision/CreateBendLeftView.qml
-        qml/modal-previews/v7-gemini-precision/V7CreateBendLeftView.qml
-        qml/modal-previews/v7-gemini-precision/V7ProgramsLeftView.qml
-        qml/modal-previews/v7-gemini-precision/V8SettingsLeftView.qml
-        qml/modal-previews/v7-gemini-precision/PreviewScene.qml
-        qml/modal-previews/v7-gemini-precision/ThcLiveTuningPreview.qml
+        qml/modal-previews/v5/ColumnRightView.qml
+        qml/modal-previews/v5/RamDroView.qml
+        qml/modal-previews/v5/RunLeftView.qml
+        qml/modal-previews/v5/ManualLeftView.qml
+        qml/modal-previews/v5/ThcLiveTuningPreview.qml
+        qml/modal-previews/v6/ColumnRightView.qml
+        qml/modal-previews/v6/RamDroView.qml
+        qml/modal-previews/v6/RunLeftView.qml
+        qml/modal-previews/v6/ManualLeftView.qml
+        qml/modal-previews/v6/V6BackGaugeLeftView.qml
+        qml/modal-previews/v6/V6ToolsLeftView.qml
+        qml/modal-previews/v6/CreateBendLeftView.qml
+        qml/modal-previews/v6/V6CreateBendLeftView.qml
+        qml/modal-previews/v6/ThcLiveTuningPreview.qml
+        qml/modal-previews/v7/ColumnRightView.qml
+        qml/modal-previews/v7/RamDroView.qml
+        qml/modal-previews/v7/RunLeftView.qml
+        qml/modal-previews/v7/ManualLeftView.qml
+        qml/modal-previews/v7/V6BackGaugeLeftView.qml
+        qml/modal-previews/v7/V6ToolsLeftView.qml
+        qml/modal-previews/v7/CreateBendLeftView.qml
+        qml/modal-previews/v7/V7CreateBendLeftView.qml
+        qml/modal-previews/v7/V7ProgramsLeftView.qml
+        qml/modal-previews/v7/V8SettingsLeftView.qml
+        qml/modal-previews/v7/PreviewScene.qml
+        qml/modal-previews/v7/ThcLiveTuningPreview.qml
         qml/modal-previews/current/PreviewScene.qml
         qml/modal-previews/v1/PreviewScene.qml
         qml/modal-previews/v1/OperationalPreview.qml

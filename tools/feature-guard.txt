@@ -30,8 +30,8 @@ qml/AppState.qml | unfoldGaugeIn:
 # Manual speed editable when ENABLED
 qml/AppState.qml | manualModeState === "ENABLED"
 # Load tower smoothing (EMA + hysteresis)
-qml/modal-previews/v5-gemini-precision/RamDroView.qml | 0.35
+qml/modal-previews/v5/RamDroView.qml | 0.35
 # Machine firmware dropdown and Fusion add-in (CAD PC) pairing
-qml/modal-previews/v7-gemini-precision/V8SettingsLeftView.qml | machine-firmware-dropdown
-qml/modal-previews/v7-gemini-precision/V8SettingsLeftView.qml | Fusion Add-in Pairing
+qml/modal-previews/v7/V8SettingsLeftView.qml | machine-firmware-dropdown
+qml/modal-previews/v7/V8SettingsLeftView.qml | Fusion Add-in Pairing
 src/MachineFirmwareBackend.cpp | modifiedMs

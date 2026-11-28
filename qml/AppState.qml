@@ -2612,7 +2612,11 @@ QtObject {
         // physicalRunRetractPlane is still its default 0 (> -0.05, firmware
         // rejects TH:SEAT with ARGUMENT). Use the bend's retract target.
         var plane = -0.05
-        if (runActive) {
+        if (standaloneSeatActive) {
+            // Standalone: return to where the seat started, not the top.
+            plane = Math.min(-0.05, rawRamPosition)
+            if (!isFinite(plane)) plane = -0.05
+        } else if (runActive) {
             plane = physicalRunRetractPlane
             if (!isFinite(plane) || plane > -0.05)
                 plane = runRamTarget("retractPosition")

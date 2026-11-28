@@ -1,6 +1,6 @@
 import QtQuick
 import QtTest
-import "../qml/modal-previews/v5-gemini-precision" as Preview
+import "../qml/modal-previews/v5" as Preview
 
 TestCase {
     name: "ManualLeftPreviewTests"
