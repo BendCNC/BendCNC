@@ -1333,7 +1333,14 @@ QtObject {
             processPhysicalRunOperatorGate()
     }
     function awaitNextBendPedalTap() {
-        if (!runAdvanceOnPedalTap || offlineSimulationEnabled)
+        if (offlineSimulationEnabled)
+            return
+        // Pedal-driven jog (1TAP jog modes) or a pedal still held from the
+        // bend would run the next sequence's SAFETY approach straight on:
+        // always require release + tap between sequences in that case.
+        var pedalHeld = physicalPedalActive || bendJogPedal
+            || (machineControl && machineControl.bendPedal)
+        if (!runAdvanceOnPedalTap && !(runPedalMode === 3 || runPedalMode === 4) && !pedalHeld)
             return
         nextBendTapReleased = false
         nextBendTapPressed = false
