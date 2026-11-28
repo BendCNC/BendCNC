@@ -1211,9 +1211,12 @@ Item {
         width: viewRow.implicitWidth + 6
         height: viewRow.implicitHeight + 6
         // Groups: framing | camera view | overlays. Thin dividers between them.
-        Column {
+        // Flow: short labels pair side by side (Top|3D, R|L) so the strip fits
+        // the shorter press viewport.
+        Flow {
             id: viewRow
             anchors.centerIn: parent
+            width: 60
             spacing: 4
             Repeater {
                 model: [
@@ -1221,11 +1224,11 @@ Item {
                     { label: qsTr("Part"), fit: true },
                     { label: qsTr("Bend"), fit: true, closeUp: true },
                     { sep: true },
-                    { label: qsTr("Top"), mode: "top" },
+                    { label: qsTr("Top"), mode: "top", half: true },
+                    { label: qsTr("3D"), mode: "iso", half: true },
                     { label: qsTr("Ortho"), mode: "top-ortho" },
-                    { label: qsTr("R"), mode: "side-right" },
-                    { label: qsTr("L"), mode: "side-left" },
-                    { label: qsTr("3D"), mode: "iso" },
+                    { label: qsTr("L"), mode: "side-left", half: true },
+                    { label: qsTr("R"), mode: "side-right", half: true },
                     { sep: true },
                     { label: qsTr("Tags"), badges: true },
                     { label: qsTr("Punch"), ghost: true }
@@ -1238,8 +1241,8 @@ Item {
                         : modelData.mode !== undefined
                         ? root.viewMode === modelData.mode
                         : (root.partOnly === modelData.fit && root.bendCloseUp === (modelData.closeUp === true))
-                    width: 56
-                    height: isSep ? 1 : btnText.implicitHeight + 16
+                    width: modelData.half ? 28 : 60
+                    height: isSep ? 1 : btnText.implicitHeight + 12
                     Rectangle {
                         anchors.fill: parent
                         visible: parent.isSep
