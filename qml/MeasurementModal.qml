@@ -179,7 +179,7 @@ Rectangle {
     // Session-only override of the program thickness by the released measurement.
     property bool thicknessOverrideAvailable: false
     property bool thicknessOverrideActive: false
-    readonly property int actionButtonWidth: operationalMode === "MEASURE" ? 166 : 190
+    readonly property int actionButtonWidth: 166
 
     function lenFmt(inches) {
         var n = Number(inches)
