@@ -236,6 +236,13 @@ Item {
                         anchors.margins: 12
                         spacing: 12
 
+                        SettingSwitchRow {
+                            title: qsTr("Tool Change: Equal Tonnage Seat (Experimental)")
+                            desc: qsTr("SEAT hold applies equal force on Y1/Y2 instead of leveling by encoders. Needs firmware with TH:SEATEQ")
+                            checked: root.appState ? root.appState.toolChangeEqualForceSeat : false
+                            onToggled: if (root.appState) root.appState.setToolChangeEqualForceSeat(!root.appState.toolChangeEqualForceSeat)
+                        }
+
                         SettingOptionRow {
                             title: qsTr("On-Screen Virtual Keyboard")
                             desc: qsTr("Behavior of touch input keyboard for data fields")
@@ -596,13 +603,6 @@ Item {
                             desc: qsTr("Step 1 of each next sequence (back gauge move) starts only after a pedal tap")
                             checked: root.appState ? root.appState.runAdvanceOnPedalTap : false
                             onToggled: if (root.appState) root.appState.setRunAdvanceOnPedalTap(!root.appState.runAdvanceOnPedalTap)
-                        }
-
-                        SettingSwitchRow {
-                            title: qsTr("Tool Change: Equal Tonnage Seat (Experimental)")
-                            desc: qsTr("SEAT hold applies equal force on Y1/Y2 instead of leveling by encoders. Needs firmware with TH:SEATEQ")
-                            checked: root.appState ? root.appState.toolChangeEqualForceSeat : false
-                            onToggled: if (root.appState) root.appState.setToolChangeEqualForceSeat(!root.appState.toolChangeEqualForceSeat)
                         }
 
                         SettingSwitchRow {
