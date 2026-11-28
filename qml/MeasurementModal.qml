@@ -49,6 +49,14 @@ Rectangle {
     property real ramPositionY2: 1.3750
     property real ramPositionMean: 1.3750
     property real ramPositionSkew: Math.abs(ramPositionY1 - ramPositionY2)
+    // Distance between the Y1 and Y2 cylinder axes; converts skew to a tilt angle.
+    property real cylinderSpacingIn: 33.0
+    readonly property real ramTiltDeg: Math.atan2(ramPositionY1 - ramPositionY2, cylinderSpacingIn) * 180 / Math.PI
+    function tiltText() {
+        if (!telemetryReady) return "--.---°"
+        var side = Math.abs(ramTiltDeg) < 0.0005 ? "" : (ramTiltDeg > 0 ? qsTr(" Y2↓") : qsTr(" Y1↓"))
+        return Math.abs(ramTiltDeg).toFixed(3) + "°" + side
+    }
 
     property real ramLoadY1: 0.500
     property real ramLoadY2: 0.500
@@ -427,6 +435,7 @@ Rectangle {
                             badgeText: root.ramPositionSkew <= 0.0010 ? qsTr("PARALLEL") : qsTr("TILT")
                             badgeBg: root.ramPositionSkew <= 0.0010 ? root.colGreenBg : "#FDE8E8"
                             badgeColor: root.ramPositionSkew <= 0.0010 ? root.colGreen : root.colRed
+                            sideText: qsTr("TILT ") + root.tiltText()
                         }
                     }
 
@@ -1724,7 +1733,20 @@ Rectangle {
         property color badgeBg: root.colPaper
         property color badgeColor: root.colGrey
         property bool tappable: false
+        property string sideText: ""
         signal tapped()
+
+        Text {
+            visible: fieldCard.sideText.length > 0
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: 8
+            anchors.bottomMargin: 7
+            text: fieldCard.sideText
+            color: fieldCard.accentColor
+            font.pixelSize: 15
+            font.bold: true
+        }
 
         Layout.fillWidth: true
         Layout.preferredHeight: 58

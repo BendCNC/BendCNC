@@ -28,9 +28,11 @@ serial port and imports parts exported by the
   dwell, tonnage.
 - **Tools** — punch and die catalog.
 - **Back gauge** — back-gauge jog and positioning.
-- **Manual** — manual ram/back-gauge jog, measurement and calibration.
+- **Manual** — manual ram/back-gauge jog, measurement and calibration. The measurement modal
+  shows Y1/Y2 skew and the ram tilt angle (atan(skew / 33 in cylinder spacing)) with the low side.
 - **CAD import** — open `.bend` files from the Fusion add-in; automatic bend sequence,
-  orientation and gauging.
+  orientation and gauging. Search, new folder and rename open the on-screen keyboard.
+- **On-screen keyboard** — shown in an overlay layer, above modal dialogs.
 - **Settings** — units (inch/mm), speeds, safety, serial port, display sleep, Wi-Fi (panel).
 - **Firmware** — firmware version check / update from the panel.
 - **Simulation mode** — without a press connected the app runs in simulation, so every screen can
