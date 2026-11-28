@@ -75,7 +75,7 @@ bool isValidatedToolChangeFrame(const QString &text)
     static const QRegularExpression movePattern(QStringLiteral(
         "\\A<THC:MOVE:(-[0-9]\\.[0-9]{4})>\\n\\z"));
     static const QRegularExpression seatPattern(QStringLiteral(
-        "\\A<TH:SEAT:([0-9]{1,2}\\.[0-9]{3}),([0-9]{1,2}\\.[0-9]{3}),(-?[0-9]\\.[0-9]{4})>\\n\\z"));
+        "\\A<TH:SEAT(?:EQ)?:([0-9]{1,2}\\.[0-9]{3}),([0-9]{1,2}\\.[0-9]{3}),(-?[0-9]\\.[0-9]{4})>\\n\\z"));
     bool ok = false;
     if (const auto m = touchPattern.match(text); m.hasMatch()) {
         const double floor = m.capturedView(2).toDouble(&ok);

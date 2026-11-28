@@ -2006,7 +2006,7 @@ bool MachineControlBackend::startToolChangeMove(double target)
 }
 
 bool MachineControlBackend::startToolChangeSeat(double bendSpeed, double jogSpeed,
-                                                double retractPlane)
+                                                double retractPlane, bool equalForce)
 {
     const QString operation = QStringLiteral("tool-change-seat");
     if (!toolChangeSupported())
@@ -2028,7 +2028,8 @@ bool MachineControlBackend::startToolChangeSeat(double bendSpeed, double jogSpee
     emit pressStateChanged();
     m_pressCommandPhase = PressCommandPhase::NativeTonnageHold;
     m_tonnageHoldDoneAcknowledged = false;
-    const QByteArray frame = QStringLiteral("<TH:SEAT:%1,%2,%3>\n")
+    const QByteArray frame = QStringLiteral("<TH:%1:%2,%3,%4>\n")
+        .arg(equalForce ? QStringLiteral("SEATEQ") : QStringLiteral("SEAT"))
         .arg(bendSpeed, 0, 'f', 3).arg(jogSpeed, 0, 'f', 3)
         .arg(retractPlane, 0, 'f', 4).toLatin1();
     if (!writePressCommand(frame, operation)) return false;
@@ -2074,7 +2075,8 @@ bool MachineControlBackend::handleToolChangeFrame(const QString &line)
         } else if (arg == QStringLiteral("BACKOFF")) {
             m_commandDeadlineTimer.setInterval(ThcReleaseHostObserverMs);
             m_commandDeadlineTimer.start();
-        } else if (arg == QStringLiteral("SEAT_ARMED")) {
+        } else if (arg == QStringLiteral("SEAT_ARMED") || arg == QStringLiteral("SEAT_ARMED:EQ")) {
+            event = QStringLiteral("SEAT_ARMED");
             acknowledgeCommandOperation();
         }
     } else if (kind == QStringLiteral("CONTACT")) {

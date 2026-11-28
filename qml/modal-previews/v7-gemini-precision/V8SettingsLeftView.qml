@@ -599,6 +599,13 @@ Item {
                         }
 
                         SettingSwitchRow {
+                            title: qsTr("Tool Change: Equal Tonnage Seat (Experimental)")
+                            desc: qsTr("SEAT hold applies equal force on Y1/Y2 instead of leveling by encoders. Needs firmware with TH:SEATEQ")
+                            checked: root.appState ? root.appState.toolChangeEqualForceSeat : false
+                            onToggled: if (root.appState) root.appState.setToolChangeEqualForceSeat(!root.appState.toolChangeEqualForceSeat)
+                        }
+
+                        SettingSwitchRow {
                             title: qsTr("Retract Between Bends")
                             desc: qsTr("Back gauge backs off after each bend. Off skips the retract move")
                             checked: root.appState ? root.appState.backGaugeRetractBetweenBendsEnabled : true

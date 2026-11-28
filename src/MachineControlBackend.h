@@ -297,7 +297,8 @@ public:
     Q_INVOKABLE bool startToolChangeTouch(double backoff, double floor);
     Q_INVOKABLE bool heartbeatToolChangeTouch();
     Q_INVOKABLE bool startToolChangeMove(double target);
-    Q_INVOKABLE bool startToolChangeSeat(double bendSpeed, double jogSpeed, double retractPlane);
+    Q_INVOKABLE bool startToolChangeSeat(double bendSpeed, double jogSpeed, double retractPlane,
+                                         bool equalForce = false);
     Q_INVOKABLE bool stopTonnageHold();
     Q_INVOKABLE bool armThcCommissioning(double targetTonnage, double speed, double floor);
     Q_INVOKABLE bool startThcCommissioning();

@@ -1292,6 +1292,19 @@ QtObject {
         }
         log("SETTINGS", "Back gauge retract between bends " + (backGaugeRetractBetweenBendsEnabled ? "ON" : "OFF"))
     }
+    // Experimental: tool-change SEAT seats punches with equal Y1/Y2 force
+    // (firmware TH:SEATEQ) instead of encoder-position leveling.
+    property bool toolChangeEqualForceSeat: persistentSettings
+        ? String(persistentSettings.value("toolChangeEqualForceSeat", "false")) === "true"
+        : false
+    function setToolChangeEqualForceSeat(enabled) {
+        toolChangeEqualForceSeat = enabled === true
+        if (persistentSettings) {
+            persistentSettings.setValue("toolChangeEqualForceSeat", toolChangeEqualForceSeat ? "true" : "false")
+            persistentSettings.sync()
+        }
+        log("SETTINGS", "Tool change equal tonnage seat " + (toolChangeEqualForceSeat ? "ON" : "OFF"))
+    }
     property bool nextBendTapReleased: false
     property bool nextBendTapPressed: false
     function setRunAdvanceOnPedalTap(enabled) {
@@ -2598,7 +2611,8 @@ QtObject {
             if (!isFinite(plane) || plane > -0.05)
                 plane = -0.05
         }
-        if (!machineControl.startToolChangeSeat(bendRamSpeed, jogRamSpeed, plane))
+        if (!machineControl.startToolChangeSeat(bendRamSpeed, jogRamSpeed, plane,
+                                                toolChangeEqualForceSeat === true))
             return false
         toolChangeState = "SEAT"
         return true
