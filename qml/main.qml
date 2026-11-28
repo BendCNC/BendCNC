@@ -1217,11 +1217,26 @@ ApplicationWindow {
             }
         }
 
-        OnScreenKeyboard {
-            id: onScreenKeyboard
-            anchors.fill: parent
-            appState: appState
+        // Hosted in its own popup so it stacks above modal popups (CAD import
+        // browser, rename dialogs); a plain Item would render underneath them.
+        Popup {
+            id: onScreenKeyboardPopup
+            parent: Overlay.overlay
+            x: 0; y: 0
+            width: parent ? parent.width : 0
+            height: parent ? parent.height : 0
+            padding: 0
+            modal: false
+            focus: false
             z: 10000
+            closePolicy: Popup.NoAutoClose
+            background: null
+            visible: appState.onScreenKeyboardVisible
+            OnScreenKeyboard {
+                id: onScreenKeyboard
+                anchors.fill: parent
+                appState: appState
+            }
         }
 
         // Supervised flash without UI restart: modal while the helper owns the

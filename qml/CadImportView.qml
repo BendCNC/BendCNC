@@ -691,6 +691,10 @@ Rectangle {
                     font.pixelSize: 13
                     background: Rectangle { radius: 4; color: "#0F172A"; border.color: importSearch.activeFocus ? "#38BDF8" : "#334155" }
                     onTextChanged: root.importFilter = text
+                    TapHandler {
+                        onTapped: if (root.appState) root.appState.openOnScreenKeyboard(
+                            importSearch, false, qsTr("SEARCH"))
+                    }
                 }
                 Repeater {
                     model: [{ k: "name", t: qsTr("NAME") }, { k: "date", t: qsTr("DATE") },
@@ -953,6 +957,11 @@ Rectangle {
                     font.pixelSize: 14
                     background: Rectangle { radius: 4; color: "#0F172A"; border.color: "#38BDF8" }
                     onAccepted: root.commitImportNameDialog()
+                    TapHandler {
+                        onTapped: if (root.appState) root.appState.openOnScreenKeyboard(
+                            importNameField, false,
+                            importNameDialog.mode === "mkdir" ? qsTr("NEW FOLDER") : qsTr("RENAME"))
+                    }
                 }
                 RowLayout {
                     Layout.fillWidth: true
