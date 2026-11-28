@@ -761,6 +761,23 @@ Item {
                         onClicked: if (root.appState)
                             root.appState.manualAction("automatic-tonnage-hold")
                     }
+                    // Standalone punch SEAT (tool change outside RUN)
+                    ActionButton {
+                        objectName: "button-standalone-seat"
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.preferredHeight: root.fieldHeight
+                        readonly property bool seatActive: root.appState ? root.appState.standaloneSeatActive : false
+                        label: seatActive ? qsTr("STOP")
+                            : (root.appState && root.appState.toolChangeEqualForceSeat ? qsTr("SEAT EQ") : qsTr("SEAT"))
+                        baseColor: seatActive ? red : orange
+                        controlEnabled: root.appState
+                            && (seatActive || root.appState.standaloneSeatAvailable)
+                        onClicked: if (root.appState) {
+                            if (seatActive) root.appState.stopStandaloneSeat()
+                            else root.appState.startStandaloneSeat()
+                        }
+                    }
             }
         }
     }
